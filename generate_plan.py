@@ -181,8 +181,8 @@ if __name__ == "__main__":
             else:
                 print(f"   - Status: Plan is full ({len(existing_articles)} articles). No action needed.")
             
-            print("   - Waiting for 60 seconds to avoid rate limiting...")
-            time.sleep(60)
+            print("   - Waiting for 180 seconds to avoid rate limiting...")
+            time.sleep(180)
         
         print("\n\n🏁 Full check completed.")
 
