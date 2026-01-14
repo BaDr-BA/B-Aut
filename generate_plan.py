@@ -36,26 +36,13 @@ BLOG_CATEGORIES = [
 
 # 5. قائمة نماذج Gemini (مرتبة من الأقوى للأقدم + نماذج مستقبلية)
 GEMINI_MODELS = [
-    'gemini-3-pro',
-    'gemini-3-pro-preview',
-    'gemini-3-flash',
-    'gemini-3-flash-preview',
-    'gemini-3-pro-image-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-pro',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash-001',
+    'gemini-3-flash',    
+    'gemini-2.5-flash',    
+    'gemini-2.5-flash-lite',    
+    'gemini-2.5-flash-tts',    
     'gemini-1.5-pro-latest',
-    'gemini-1.5-pro',
     'gemini-1.5-flash-latest',
-    'gemini-1.5-flash',
-    'gemini-1.0-ultra',
-    'gemini-1.0-pro',
-    'text-bison-001',
-
+    'gemini-pro',
 ]
 
 # 6. المسار الذي سيتم حفظ الخطط فيه داخل مستودع GitHub
