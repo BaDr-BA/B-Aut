@@ -3,7 +3,7 @@ import json
 import random
 import time
 from github import Github, Auth
-import google.generai as genai
+import google.generativeai as genai
 
 # --- الإعدادات الأساسية ---
 GEMINI_API_KEYS = [
