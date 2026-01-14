@@ -12,6 +12,9 @@ on:
     # يمكنك تعديل التوقيت كما تشاء باستخدام صيغة Cron
     - cron: '0 3 * * 0'
 
+permissions:
+  contents: write
+
 # ما هي المهام التي سيقوم بها الروبوت؟
 jobs:
   build-and-run:
