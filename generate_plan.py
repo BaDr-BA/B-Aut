@@ -22,7 +22,7 @@ GEMINI_API_KEYS = [key for key in GEMINI_API_KEYS if key]
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 # 3. إعدادات مستودع GitHub
-GITHUB_REPO_NAME = "your_username/your_repo_name"  #  مثال: "Badr-BA/my-blog-automation"
+GITHUB_REPO_NAME = "BaDr-BA/B-Aut"  #  مثال: "Badr-BA/my-blog-automation"
 
 # 4. أقسام مدونتك
 # <<! مهم جدًا !>> لإضافة قسم جديد في المستقبل، فقط أضف سطرًا جديدًا هنا.
