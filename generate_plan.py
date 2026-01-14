@@ -2,12 +2,10 @@ import os
 import json
 import random
 import time
-from github import Github, UnknownObjectException
-import google.generativeai as genai
+from github import Github, Auth
+import google.generai as genai
 
-# --- الإعدادات الأساسية (عدّل هنا فقط) ---
-
-# 1. قائمة مفاتيح Gemini API
+# --- الإعدادات الأساسية ---
 GEMINI_API_KEYS = [
     os.environ.get("GEMINI_API_KEY_1"),
     os.environ.get("GEMINI_API_KEY_2"),
@@ -18,23 +16,13 @@ GEMINI_API_KEYS = [
 ]
 GEMINI_API_KEYS = [key for key in GEMINI_API_KEYS if key]
 
-# 2. مفتاح GitHub Token
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_REPO_NAME = "BaDr-BA/B-Aut"
 
-# 3. إعدادات مستودع GitHub
-GITHUB_REPO_NAME = "BaDr-BA/B-Aut"  #  مثال: "Badr-BA/my-blog-automation"
+BLOG_CATEGORIES = ["أدوات AI", "شروحات AI", "ربح من AI", "برومبتات AI", "أتمتة AI"]
 
-# 4. أقسام مدونتك
-# <<! مهم جدًا !>> لإضافة قسم جديد في المستقبل، فقط أضف سطرًا جديدًا هنا.
-BLOG_CATEGORIES = [
-    "أدوات AI",
-    "شروحات AI",
-    "ربح من AI",
-    "برومبتات AI",
-    "أتمتة AI",
-]
-
-# 5. قائمة نماذج Gemini (مرتبة من الأقوى للأقدم + نماذج مستقبلية)
+# <--- التغيير الأول هنا: أعدنا القائمة بالنماذج الصحيحة
+# سيتم تجربتها بالترتيب من الأقوى للأسرع
 GEMINI_MODELS = [
     'gemini-3-flash',    
     'gemini-2.5-flash',    
@@ -45,135 +33,158 @@ GEMINI_MODELS = [
     'gemini-pro',
 ]
 
-# 6. المسار الذي سيتم حفظ الخطط فيه داخل مستودع GitHub
 PLANS_DIRECTORY = "plans"
 PUBLISHED_TITLES_FILE_PATH = "published_titles.txt"
+MINIMUM_ARTICLES_THRESHOLD = 10
 
-# --- (الكود البرمجي - لا تعدل ما لم تكن تعرف ماذا تفعل) ---
+# --- (الكود البرمجي) ---
 
 def get_github_repo():
-    """يتصل بمستودع GitHub."""
     if not GITHUB_TOKEN:
-        raise ValueError("خطأ: لم يتم العثور على GitHub Token.")
-    return Github(GITHUB_TOKEN).get_repo(GITHUB_REPO_NAME)
+        raise ValueError("GitHub Token not found.")
+    auth = Auth.Token(GITHUB_TOKEN)
+    return Github(auth=auth).get_repo(GITHUB_REPO_NAME)
 
 def get_file_content(repo, file_path):
-    """يحصل على محتوى ملف من GitHub، ويعيد None إذا لم يكن موجودًا."""
     try:
-        file_content = repo.get_contents(file_path)
-        return file_content.decoded_content.decode('utf-8')
-    except UnknownObjectException:
-        return None # الملف غير موجود
-    except Exception as e:
-        print(f"⚠️ تحذير: لم أتمكن من قراءة الملف {file_path}. السبب: {e}")
-        return "" # نعيد نص فارغ لمنع توقف السكريبت
+        return repo.get_contents(file_path).decoded_content.decode('utf-8')
+    except Exception:
+        return None
 
 def upload_or_update_github_file(repo, file_path, content, commit_message):
-    """يرفع أو يحدّث ملف على GitHub."""
     try:
         existing_file = repo.get_contents(file_path)
         repo.update_file(existing_file.path, commit_message, content, existing_file.sha)
-        print(f"✅ تم تحديث الملف: {file_path}")
-    except UnknownObjectException:
+        print(f"✅ File updated: {file_path}")
+    except Exception:
         repo.create_file(file_path, commit_message, content)
-        print(f"✅ تم إنشاء ملف جديد: {file_path}")
-    except Exception as e:
-        raise IOError(f"فشل الرفع إلى GitHub للملف {file_path}. السبب: {e}")
+        print(f"✅ File created: {file_path}")
 
 def get_content_plan_prompt(category, excluded_titles):
-    """ينشئ البرومبت النهائي مع إضافة القسم وقائمة العناوين المستبعدة."""
-    exclusion_prompt_part = ""
+    """
+    ينشئ البرومبت التفصيلي والاحترافي مع تعليمات التحويل إلى JSON.
+    """
+    exclusion_prompt = ""
     if excluded_titles:
-        excluded_titles_text = "\n- ".join(excluded_titles)
-        exclusion_prompt_part = f"""
-ملاحظة هامة جدا: لقد قمت بالفعل بنشر المقالات التالية. لا تقم بتوليد أي من هذه العناوين مرة أخرى أو عناوين شديدة الشبه بها:
-- {excluded_titles_text}
+        titles_text = "\n- ".join(excluded_titles)
+        # تعديل بسيط لجعل الرسالة أوضح للنموذج
+        exclusion_prompt = f"""
+VERY IMPORTANT NOTE: I have already published articles with the following titles.
+Do NOT generate these titles again, or titles that are very similar to them:
+- {titles_text}
 """
+    
+    # <<< هنا وضعنا البرومبت الطويل الخاص بك بالكامل >>>
     return f"""
-بصفتك خبيرًا في تحسين محركات البحث (SEO)، أنشئ لي خطة محتوى احترافية لقسم ({category}).
+بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة اخر الاحداث، أريدك أن تنشئ لي خطة محتوى احترافية لقسم ({category}) في موقعي.
+
 المطلوب:
-1- اقتراح (20) عنوان مقال جديد ومبتكر.
-2- كل عنوان يجب أن يكون قابل للبحث، احترافي وجذاب.
-3- قدم النتائج في جدول، ثم حول هذا الجدول إلى تنسيق JSON Array صالح.
-{exclusion_prompt_part}
-IMPORTANT: Your final output MUST be a valid JSON array of objects. Each object must have these keys in English: "title", "keyword", "meta_description", "goal", "competition", "search_volume", "cpc". Do not include any text or markdown formatting before or after the JSON array.
+
+1- اقتراح (20) عنوان مقال مستخرج من:
+اقتراحات جوجل التلقائية (تم البحث أيضًا عن).
+قسم "الناس أيضًا يسألون" (People Also Ask).
+قسم أسئلة أخرى.
+أدوات تحليل الكلمات المفتاحية (مثل Google Keyword Planner، Ubersuggest، SEMrush، Ahrefs، Keywordtool.io، AnswerThePublic، Google Trends، واي ادوات اخري).
+
+2- كل عنوان يجب أن يكون قابل للبحث، احترافي وجذاب ومشوق للزائر لزيادة نسبة النقر إلى الظهور (CTR).
+
+3- قدم النتائج في جدول احترافي يحتوي على الأعمدة التالية:
+عنوان المقال
+الكلمة المستهدفة
+وصف ميتا
+هدف المقال للزائر او للقارئ في حدود 20 كلمة
+نسبة المنافسة على الكلمة
+متوسط عدد عمليات البحث الشهرية
+سعر الكلمة المفتاحية (Cost Per Click)
+
+4- كل عنوان يجب أن يكون بين 70 إلى 80 حرفًا.
+
+5- لكل عنوان، أنشئ وصفًا ميتا (Meta Description) يحتوي على الكلمة المفتاحية، يكون احترافي وفضولي ومشوقًا وجذابًا ويتراوح طوله بين 100 إلى 150 حرفًا.
+
+{exclusion_prompt}
+
+CRITICAL FINAL INSTRUCTION: After creating the professional table as requested, your final and ONLY output must be a valid JSON array of objects.
+Convert the table you created into this JSON format. Each object in the array must have these exact English keys, corresponding to the table columns:
+- "title" (for a'enwan almaqal)
+- "keyword" (for alklimat almustahdafa)
+- "meta_description" (for wasf mita)
+- "goal" (for hadaf almaqal lilzayir)
+- "competition" (for nisbat almunafasa)
+- "search_volume" (for mutawasit eadad eamaliat albahth)
+- "cpc" (for saer alklimat almuftahia)
+
+Do not include any text, explanation, or markdown formatting like ```json before or after the JSON array itself.
 """
 
+# <--- التغيير الثاني هنا: أعدنا حلقة المحاولة والتنقل بين النماذج
 def generate_plan_for_category(category, excluded_titles):
-    """يولد خطة محتوى لقسم معين باستخدام Gemini."""
     if not GEMINI_API_KEYS:
-        raise ValueError("خطأ: لم يتم العثور على أي مفاتيح Gemini API.")
-
-    selected_api_key = random.choice(GEMINI_API_KEYS)
-    genai.configure(api_key=selected_api_key)
-
+        raise ValueError("No Gemini API keys found.")
+    
+    genai.configure(api_key=random.choice(GEMINI_API_KEYS))
     prompt = get_content_plan_prompt(category, excluded_titles)
-
+    
+    # حلقة المرور على النماذج
     for model_name in GEMINI_MODELS:
-        print(f"   - محاولة مع نموذج: {model_name}...")
+        print(f"   - Attempting with model: {model_name}...")
         try:
             model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt, request_options={'timeout': 120}) # زيادة مهلة الانتظار
+            response = model.generate_content(prompt)
             cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
-            
-            # تحقق بسيط من صحة الـ JSON
-            json.loads(cleaned_response) 
-            
-            print(f"   🎉 نجح! تم توليد الخطة باستخدام {model_name}.")
-            return json.dumps(json.loads(cleaned_response), indent=2, ensure_ascii=False)
+            new_articles = json.loads(cleaned_response)
+            if isinstance(new_articles, list):
+                print(f"   🎉 Success! Generated {len(new_articles)} new articles with {model_name}.")
+                return new_articles # نجحنا، نرجع بالنتيجة ونخرج من الدالة
         except Exception as e:
-            print(f"   ❌ فشل مع {model_name}. السبب: {e}")
+            # إذا فشل، نطبع الخطأ وننتقل للنموذج التالي
+            print(f"   ❌ Failed with {model_name}. Reason: {e}")
             time.sleep(2) # انتظار ثانيتين قبل المحاولة التالية
     
-    raise RuntimeError(f"فشلت جميع النماذج في توليد خطة للقسم: {category}")
+    # إذا فشلت كل النماذج في الحلقة
+    raise RuntimeError(f"All models failed to generate a plan for category: {category}")
 
-# --- السكريبت الرئيسي ---
+
 if __name__ == "__main__":
     try:
-        print("🚀 بدء عملية فحص وتحديث خطط المحتوى...")
+        print("🚀 Starting content plan check...")
         repo = get_github_repo()
         
-        # قراءة قائمة العناوين المنشورة مرة واحدة في البداية
-        published_titles_content = get_file_content(repo, PUBLISHED_TITLES_FILE_PATH)
-        published_titles = published_titles_content.splitlines() if published_titles_content else []
-        if published_titles:
-            print(f"تم العثور على {len(published_titles)} عنوانًا منشورًا سابقًا لتجنبها.")
+        published_content = get_file_content(repo, PUBLISHED_TITLES_FILE_PATH)
+        published_titles = published_content.splitlines() if published_content else []
 
-        # المرور على كل قسم للتحقق من خطته
         for category in BLOG_CATEGORIES:
-            print(f"\n🔎 يتم الآن فحص قسم: '{category}'...")
+            print(f"\n🔎 Checking category: '{category}'...")
             plan_path = f"{PLANS_DIRECTORY}/content_plan_{category}.json"
             
+            existing_articles = []
             content = get_file_content(repo, plan_path)
             
-            # التحقق إذا كانت الخطة بحاجة للتجديد (غير موجودة أو فارغة)
-            needs_regeneration = False
-            if content is None:
-                print("   - الحالة: الخطة غير موجودة. سيتم إنشاؤها.")
-                needs_regeneration = True
-            else:
-                try:
-                    plan_data = json.loads(content)
-                    if not isinstance(plan_data, list) or not plan_data:
-                        print("   - الحالة: الخطة موجودة لكنها فارغة. سيتم تجديدها.")
-                        needs_regeneration = True
-                    else:
-                        print(f"   - الحالة: الخطة موجودة وتحتوي على {len(plan_data)} مقال. لا يلزم اتخاذ أي إجراء.")
-                except json.JSONDecodeError:
-                    print("   - الحالة: الخطة موجودة لكنها تالفة. سيتم تجديدها.")
-                    needs_regeneration = True
+            if content:
+                try: existing_articles = json.loads(content)
+                except: existing_articles = []
             
-            if needs_regeneration:
+            if len(existing_articles) < MINIMUM_ARTICLES_THRESHOLD:
+                print(f"   - Status: Below threshold ({len(existing_articles)}/{MINIMUM_ARTICLES_THRESHOLD}). Regeneration needed.")
                 try:
-                    print("   - جاري توليد خطة محتوى جديدة...")
-                    new_plan_json = generate_plan_for_category(category, published_titles)
-                    commit_msg = f"feat: Regenerate content plan for '{category}'"
-                    upload_or_update_github_file(repo, plan_path, new_plan_json, commit_msg)
-                except (RuntimeError, IOError) as e:
-                    print(f"   🛑 فشلت عملية التجديد للقسم '{category}'. السبب: {e}")
+                    all_excluded = set(published_titles + [a['title'] for a in existing_articles])
+                    new_articles = generate_plan_for_category(category, list(all_excluded))
+                    
+                    final_articles = list({a['title']: a for a in existing_articles + new_articles}.values())
+                    final_plan_json = json.dumps(final_articles, indent=2, ensure_ascii=False)
+                    
+                    commit_msg = f"feat: Refresh content plan for '{category}'"
+                    upload_or_update_github_file(repo, plan_path, final_plan_json, commit_msg)
+                    print(f"   - Plan updated. New total: {len(final_articles)} articles.")
+
+                except (RuntimeError, IOError, ValueError) as e:
+                    print(f"   🛑 Regeneration failed for '{category}'. Reason: {e}")
+            else:
+                print(f"   - Status: Plan is full ({len(existing_articles)} articles). No action needed.")
+            
+            print("   - Waiting for 60 seconds to avoid rate limiting...")
+            time.sleep(60)
         
-        print("\n\n🏁 انتهت عملية الفحص بالكامل.")
+        print("\n\n🏁 Full check completed.")
 
     except (ValueError, IOError) as e:
-        print(f"\n🛑 توقفت العملية بسبب خطأ فادح: {e}")
-
+        print(f"\n🛑 Fatal error stopped the process: {e}")
