@@ -1,2 +1,2 @@
-google-generai
+google-generativeai
 PyGithub
