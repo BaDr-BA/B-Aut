@@ -46,7 +46,20 @@ def get_gemini_model():
     key = random.choice(GEMINI_API_KEYS)
     genai.configure(api_key=key)
     # نستخدم Pro لأنه الأذكى في فهم الهيكل والتعليمات المعقدة
-    return genai.GenerativeModel('gemini-1.5-pro-latest', safety_settings=SAFETY_SETTINGS)
+    # قائمة الموديلات التي تريدها (رتبها كما تحب)
+models_list = [
+    'gemini-3-flash',    
+    'gemini-2.5-flash',    
+    'gemini-2.5-flash-lite',    
+    'gemini-2.5-flash-tts',    
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-flash-latest',
+    'gemini-pro',
+]
+selected_model = random.choice(models_list)
+print(f"🤖 Using Model: {selected_model}")
+return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
+
 
 def generate_article_structure(title, keyword):
     """المرحلة 1: بناء الهيكل الهندسي للمقال"""
