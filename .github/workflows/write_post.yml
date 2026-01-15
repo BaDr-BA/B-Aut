@@ -1,9 +1,9 @@
 name: Auto Writer & Publisher
 
 on:
-  workflow_dispatch: # للتشغيل اليدوي للتجربة
+  workflow_dispatch:
   schedule:
-    - cron: '0 10 * * 1,4' # يعمل الساعة 10 صباحاً يومي الاثنين والخميس
+    - cron: '0 */6 * * *' # كل 6 ساعات (00:00, 06:00, 12:00, 18:00)
 
 jobs:
   write-post:
