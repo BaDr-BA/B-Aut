@@ -50,19 +50,18 @@ def get_gemini_model():
     genai.configure(api_key=key)
     # نستخدم Pro لأنه الأذكى في فهم الهيكل والتعليمات المعقدة
     # قائمة الموديلات التي تريدها (رتبها كما تحب)
-models_list = [
-    'gemini-3-flash',    
-    'gemini-2.5-flash',    
-    'gemini-2.5-flash-lite',    
-    'gemini-2.5-flash-tts',    
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-flash-latest',
-    'gemini-pro',
+    models_list = [
+        'gemini-3-flash',    
+        'gemini-2.5-flash',    
+        'gemini-2.5-flash-lite',    
+        'gemini-2.5-flash-tts',    
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-flash-latest',
+        'gemini-pro',
 ]
     selected_model = random.choice(models_list)
     print(f"🤖 Using Model: {selected_model}")
     
-    # تصحيح الخطأ: تم دفع السطر للداخل (4 مسافات)
     return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
 
 
