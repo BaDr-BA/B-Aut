@@ -224,7 +224,7 @@ def write_full_article(article_data):
             # إضافة المحتوى للمقال
             full_html += content + "\n<br>\n"
             print(f"   - Wrote section: {title_text} ({sec_type})")
-            time.sleep(2) # راحة بسيطة
+            time.sleep(20) # راحة بسيطة
             
             # --- الإضافات المحشورة (Injections) ---
             
