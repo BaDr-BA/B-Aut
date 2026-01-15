@@ -72,7 +72,7 @@ def generate_article_structure(title, keyword):
     المطلوب:
     أعطني العناوين الفرعية (H2) والعناوين الأصغر (H3) المناسبة لمقال متوافق مع معايير SEO الجديدة ونية الباحث لتصدر نتائج البحث.
     بجانب كل عنوان، حدد "نوع المحتوى" الأنسب له من هذه القائمة حصراً:
-    [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, advice_box, pros_cons]
+    [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, advice_box, pros_cons, emoji_check_list]
 
     يجب أن يكون الرد بصيغة JSON Array فقط، بهذا الشكل:
     [
@@ -137,6 +137,11 @@ def get_content_prompt(section_type, section_title, keyword):
         ابدأ بمقدمة بسيطة (200 حرف) توضح أهمية الموازنة قبل اتخاذ القرار
         ثم اذكر المميزات في نقاط والعيوب في نقاط أخرى (أو ماذا تفعل وماذا تتجنب)
         واختم بملاحظة قصيرة (200 حرف) تلخص وجهة نظرك كخبير.
+        """,
+        
+        "emoji_check_list": f"""
+        اكتب لي فقرة باستخدام الايموجي (✅ و ❌) لتوضيح الصحيح والخاطئ حول ({section_title}).
+        ابدأ بمقدمة قصيرة، ثم القائمة، ثم نصيحة ختامية.
         """,
         
         "conclusion": f"""
