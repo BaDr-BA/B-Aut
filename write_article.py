@@ -51,13 +51,14 @@ def get_gemini_model():
     # نستخدم Pro لأنه الأذكى في فهم الهيكل والتعليمات المعقدة
     # قائمة الموديلات التي تريدها (رتبها كما تحب)
     models_list = [
-        'gemini-3-flash',    
-        'gemini-2.5-flash',    
-        'gemini-2.5-flash-lite',    
-        'gemini-2.5-flash-tts',    
-        'gemini-1.5-pro-latest',
-        'gemini-1.5-flash-latest',
-        'gemini-pro',
+        'gemini-3-pro-preview',    
+        'deep-research-pro-preview-12-2025',    
+        'gemini-2.5-pro',    
+        'gemini-3-flash-preview',    
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash-lite',
 ]
     selected_model = random.choice(models_list)
     print(f"🤖 Using Model: {selected_model}")
