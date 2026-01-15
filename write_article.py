@@ -59,9 +59,11 @@ models_list = [
     'gemini-1.5-flash-latest',
     'gemini-pro',
 ]
-selected_model = random.choice(models_list)
-print(f"🤖 Using Model: {selected_model}")
-return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
+    selected_model = random.choice(models_list)
+    print(f"🤖 Using Model: {selected_model}")
+    
+    # تصحيح الخطأ: تم دفع السطر للداخل (4 مسافات)
+    return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
 
 
 def generate_article_structure(title, keyword):
