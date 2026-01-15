@@ -299,8 +299,10 @@ def main():
 
         service.posts().insert(blogId=BLOG_ID, body=post_data).execute()
         print(f"✅ Published draft: {article['title']}")
-        
-        # 1. تحديث ملف الخطة (حذف المقال)
+
+        # --- التحكم في الحذف (شرط التجربة) ---
+        if not TEST_MODE:
+            # 1. تحديث ملف الخطة (حذف المقال)
             new_plan = content_json[1:]
             updated_content = json.dumps(new_plan, indent=2, ensure_ascii=False)
             repo.update_file(selected_file.path, f"Published: {article['title']}", updated_content, selected_file.sha)
