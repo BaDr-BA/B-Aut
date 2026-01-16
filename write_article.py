@@ -184,16 +184,20 @@ def write_full_article(article_data):
     chat = model.start_chat(history=[])
     
     # 1. تهيئة الأسلوب (System Instruction via Chat) + تعليمات الـ Bold
-    setup_prompt = """
-    بما انك كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة اريد
-    ان تعطيني اي اجابة في هذه المحادثة باللهجة الفصحى (البسيطة) والكلام بطريقة
-    بشرية في كل اجابة او رد منك علي في هذه المحادثة من البداية الي النهاية وان
-    امكن ترد بطريقة البشر وكتابة الفقرات والاجابة علي طلباتي ايضا تجيب عليها
-    بطريقة بشرية باسلوب جديد احترافي وحصري ومميز وبلهجة الفصحى البسيطة.
-    """
-    # إضافة شرط الـ Bold للبرومبت
-    setup_prompt += f"\n ملاحظة هامة جداً: أي ذكر للكلمة المفتاحية '{keyword}' في أي نص تكتبه، اجعلها عريضة (Bold) بوضعها بين وسمي <b> و </b> هكذا: <b>{keyword}</b>."
-    chat.send_message(setup_prompt)
+    try:
+        setup_prompt = """
+        بما انك كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة اريد
+        ان تعطيني اي اجابة في هذه المحادثة باللهجة الفصحى (البسيطة) والكلام بطريقة
+        بشرية في كل اجابة او رد منك علي في هذه المحادثة من البداية الي النهاية وان
+        امكن ترد بطريقة البشر وكتابة الفقرات والاجابة علي طلباتي ايضا تجيب عليها
+        بطريقة بشرية باسلوب جديد احترافي وحصري ومميز وبلهجة الفصحى البسيطة.
+        """
+        # إضافة شرط الـ Bold للبرومبت
+        setup_prompt += f"\n ملاحظة هامة جداً: أي ذكر للكلمة المفتاحية '{keyword}' في أي نص تكتبه، اجعلها عريضة (Bold) بوضعها بين وسمي <b> و </b> هكذا: <b>{keyword}</b>."
+        chat.send_message(setup_prompt)
+        time.sleep(10)  # انتظار 10 ثواني بعد التهيئة
+    except Exception as e:
+        print(f"⚠️ Setup warning: {e}")
     
     full_html = ""
     
@@ -217,14 +221,21 @@ def write_full_article(article_data):
         # إضافة تذكير دائم بـ HTML
         prompt += "\n" + "اجعل الإجابة بصيغة HTML tags فقط (p, ul, li, table...) بدون تغليفها بـ ```html"
         
-        try:
+        # --- نظام المحاولات الذكي لتجنب خطأ 429 ---
+        success = False
+        retries = 0
+        while not success and retries < 3:
+            try:
+            print(f"   - Writing section: {title_text}...")
             response = chat.send_message(prompt)
             content = response.text.replace("```html", "").replace("```", "").strip()
             
             # إضافة المحتوى للمقال
             full_html += content + "\n<br>\n"
-            print(f"   - Wrote section: {title_text} ({sec_type})")
-            time.sleep(20) # راحة بسيطة
+            print(f"   ✅ Done.")
+            success = True
+            # أهم سطر: الانتظار 25 ثانية بين كل فقرة وفقرة لتجنب الحظر
+            time.sleep(25) 
             
             # --- الإضافات المحشورة (Injections) ---
             
@@ -245,8 +256,14 @@ def write_full_article(article_data):
                 # تنسيق بسيط لتمييزها
                 full_html += f"<div style='text-align:center; margin: 20px 0;'>{clean_mot}</div>\n<br>\n"
 
-        except Exception as e:
-            print(f"   ⚠️ Error writing section {title_text}: {e}")
+            except Exception as e:
+                if "429" in str(e):
+                    print(f"   ⚠️ Quota hit! Sleeping for 30 seconds before retry {retries+1}/3...")
+                    time.sleep(35) # انتظار طويل إذا اكتشف أن الكوتا انتهت
+                    retries += 1
+                else:
+                    print(f"   ❌ Error: {e}")
+                    break # خطأ آخر غير الكوتا، توقف عن المحاولة في هذه الفقرة
 
     return full_html
 
