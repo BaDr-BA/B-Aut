@@ -9,6 +9,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from googletrans import Translator
+import typing_extensions as typing
+from github import Github, Auth
 
 # --- وضع الاختبار ---
 TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
@@ -30,6 +32,50 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
+
+# ---------------------------------------------------------
+# دالة المراقبة وتحديث ملف الحالة (توضع هنا لتراها كل الدوال)
+# ---------------------------------------------------------
+def update_status_log(message):
+    """تحديث ملف status.md في المستودع لمراقبة العمل لحظة بلحظة"""
+    
+    # طباعة الرسالة في الكونسول دائماً للمتابعة السريعة
+    print(f"📝 LOG: {message}")
+
+    if TEST_MODE: 
+        return # في وضع الاختبار نكتفي بالطباعة فقط
+
+    try:
+        # استخدام طريقة المصادقة الجديدة لتجنب التحذيرات
+        from github import Auth
+        auth = Auth.Token(GITHUB_TOKEN)
+        g = Github(auth=auth)
+        
+        repo = g.get_repo(REPO_NAME)
+        
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"- `{timestamp}` : {message}"
+
+        try:
+            # محاولة جلب الملف وتحديثه
+            contents = repo.get_contents("status.md")
+            current_log = contents.decoded_content.decode("utf-8")
+            
+            # نضيف السطر الجديد في البداية عشان تشوف آخر حاجة فوق
+            new_log = f"{log_entry}\n{current_log}"
+            
+            # تحديث الملف (نقوم بقص اللوج لو زاد عن حد معين عشان ميبقاش تقيل)
+            if len(new_log) > 50000: 
+                new_log = new_log[:50000] + "\n... (تم حذف السجلات القديمة)"
+                
+            repo.update_file(contents.path, f"Status: {message}", new_log, contents.sha)
+        except:
+            # إذا الملف غير موجود، ننشئه
+            repo.create_file("status.md", "Init status log", f"# 📊 سجل عمليات البوت\n\n{log_entry}")
+            
+    except Exception as e:
+        print(f"⚠️ Could not update status log: {e}")
+
 
 def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
@@ -100,9 +146,6 @@ def get_gemini_model():
     genai.configure(api_key=key)
     
     models_list = [
-        'gemini-3-pro-preview',    
-        'deep-research-pro-preview-12-2025',    
-        'gemini-2.5-pro',    
         'gemini-3-flash-preview',    
         'gemini-2.5-flash',
         'gemini-2.0-flash',
@@ -147,14 +190,22 @@ def generate_article_structure(title, keyword):
     - استخدم "h2" للعناوين الرئيسية
     - استخدم "h3" للعناوين الفرعية
     - لا تكرر نفس العنوان
-    - لا تضف نص خارج JSON
     """
     
+    # إعداد الكونفيج الجديد للإجبار على JSON
+    generation_config = {
+        "response_mime_type": "application/json",
+        "response_schema": list[dict[str, str]]
+    }
+
     try:
-        response = model.generate_content(prompt)
-        structure = json.loads(clean_json_response(response.text))
+        # التغيير هنا: تمرير generation_config
+        response = model.generate_content(prompt, generation_config=generation_config)
         
-        # التحقق من عدم وجود عناوين مكررة
+        # لم نعد بحاجة لدالة clean_json_response لأن الرد نظيف 100%
+        structure = json.loads(response.text)
+        
+        # كود التحقق من التكرار
         titles_seen = set()
         unique_structure = []
         for item in structure:
@@ -165,6 +216,7 @@ def generate_article_structure(title, keyword):
                 print(f"⚠️ Skipping duplicate title: {item['title']}")
         
         return unique_structure
+        
     except Exception as e:
         print(f"⚠️ Failed to generate structure: {e}")
         return [
@@ -438,7 +490,7 @@ def write_full_article(article_data):
         مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
         """
         chat.send_message(setup_prompt)
-        time.sleep(10)
+        time.sleep(15)
     except Exception as e:
         print(f"⚠️ Setup warning: {e}")
     
@@ -566,7 +618,9 @@ def write_full_article(article_data):
     return full_html
 
 def main():
-    g = Github(GITHUB_TOKEN)
+    auth = Auth.Token(GITHUB_TOKEN)
+    g = Github(auth=auth)
+
     repo = g.get_repo(REPO_NAME)
     
     plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
@@ -620,6 +674,23 @@ def main():
 
     except Exception as e:
         print(f"❌ Error publishing to Blogger: {e}")
+        
+        # --- الإضافة الجديدة: نقل الملف الفاشل ---
+        if not TEST_MODE:
+            try:
+                # 1. قراءة محتوى الملف الحالي
+                failed_content = selected_file.decoded_content.decode("utf-8")
+                
+                # 2. إنشاء الملف في مجلد failed_plans
+                failed_path = f"failed_plans/{selected_file.name}"
+                repo.create_file(failed_path, f"Move failed plan: {selected_file.name}", failed_content)
+                
+                # 3. حذف الملف من المجلد الأصلي plans
+                repo.delete_file(selected_file.path, f"Remove failed plan: {selected_file.name}", selected_file.sha)
+                
+                print(f"⚠️ Moved {selected_file.name} to 'failed_plans' directory for inspection.")
+            except Exception as move_error:
+                print(f"⚠️ Could not move failed file: {move_error}")
 
 if __name__ == "__main__":
     main()
