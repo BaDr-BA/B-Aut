@@ -59,7 +59,7 @@ def get_gemini_model():
         'gemini-2.0-flash',
         'gemini-2.5-flash-lite',
         'gemini-2.0-flash-lite',
-]
+    ]
     selected_model = random.choice(models_list)
     print(f"🤖 Using Model: {selected_model}")
     
@@ -234,28 +234,33 @@ def write_full_article(article_data):
                 full_html += content + "\n<br>\n"
                 print(f"   ✅ Done.")
                 success = True
+                
+                # --- الإضافات المحشورة (Injections) ---
+                
+                # 1. إذا كان القسم هو "intro" (المقدمة) -> نضيف تحته الخلاصة السريعة فوراً
+                if sec_type == 'introduction':
+                    print("   -> Injecting Summary Box...")
+                    summary_prompt = get_content_prompt("summary_box", "ملخص سريع", keyword)
+                    summary_prompt += "\n" + "اجعل الإجابة بصيغة HTML tags فقط (p, ul, li, div...) بدون تغليفها بـ ```html"
+                    resp_sum = chat.send_message(summary_prompt)
+                    clean_sum = resp_sum.text.replace("```html", "").replace("```", "").strip()
+                    full_html += clean_sum + "\n<br>\n"
+                    time.sleep(25)
+
+                # 2. إذا وصلنا لمنتصف المقال -> نضيف الفقرة التحفيزية
+                if i == mid_index:
+                    print("   -> Injecting Motivation Box...")
+                    mot_prompt = get_content_prompt("motivation_box", "تحفيز القراءة", keyword)
+                    mot_prompt += "\n" + "اجعل الإجابة بصيغة HTML tags فقط (p, div...) بدون تغليفها بـ ```html"
+                    resp_mot = chat.send_message(mot_prompt)
+                    clean_mot = resp_mot.text.replace("```html", "").replace("```", "").strip()
+                    # تنسيق بسيط لتمييزها
+                    full_html += f"<div style='text-align:center; margin: 20px 0;'>{clean_mot}</div>\n<br>\n"
+                    time.sleep(25)
+                
                 # أهم سطر: الانتظار 25 ثانية بين كل فقرة وفقرة لتجنب الحظر
-                time.sleep(25) 
+                time.sleep(25)
             
-            # --- الإضافات المحشورة (Injections) ---
-            
-            # 1. إذا كان القسم هو "intro" (المقدمة) -> نضيف تحته الخلاصة السريعة فوراً
-            if level == 'intro':
-                print("   -> Injecting Summary Box...")
-                summary_prompt = get_content_prompt("summary_box", "ملخص سريع", keyword)
-                resp_sum = chat.send_message(summary_prompt)
-                clean_sum = resp_sum.text.replace("```html", "").replace("```", "").strip()
-                full_html += clean_sum + "\n<br>\n"
-
-            # 2. إذا وصلنا لمنتصف المقال -> نضيف الفقرة التحفيزية
-            if i == mid_index:
-                print("   -> Injecting Motivation Box...")
-                mot_prompt = get_content_prompt("motivation_box", "تحفيز القراءة", keyword)
-                resp_mot = chat.send_message(mot_prompt)
-                clean_mot = resp_mot.text.replace("```html", "").replace("```", "").strip()
-                # تنسيق بسيط لتمييزها
-                full_html += f"<div style='text-align:center; margin: 20px 0;'>{clean_mot}</div>\n<br>\n"
-
             except Exception as e:
                 if "429" in str(e):
                     print(f"   ⚠️ Quota hit! Sleeping for 30 seconds before retry {retries+1}/3...")
