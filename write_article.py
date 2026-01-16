@@ -226,16 +226,16 @@ def write_full_article(article_data):
         retries = 0
         while not success and retries < 3:
             try:
-            print(f"   - Writing section: {title_text}...")
-            response = chat.send_message(prompt)
-            content = response.text.replace("```html", "").replace("```", "").strip()
+                print(f"   - Writing section: {title_text}...")
+                response = chat.send_message(prompt)
+                content = response.text.replace("```html", "").replace("```", "").strip()
             
-            # إضافة المحتوى للمقال
-            full_html += content + "\n<br>\n"
-            print(f"   ✅ Done.")
-            success = True
-            # أهم سطر: الانتظار 25 ثانية بين كل فقرة وفقرة لتجنب الحظر
-            time.sleep(25) 
+                # إضافة المحتوى للمقال
+                full_html += content + "\n<br>\n"
+                print(f"   ✅ Done.")
+                success = True
+                # أهم سطر: الانتظار 25 ثانية بين كل فقرة وفقرة لتجنب الحظر
+                time.sleep(25) 
             
             # --- الإضافات المحشورة (Injections) ---
             
