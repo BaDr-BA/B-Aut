@@ -206,15 +206,13 @@ def write_full_article(article_data):
     
     # 2. المرور على الأقسام وكتابتها
     for i, section in enumerate(structure):
-        level = section.get('level', 'h2')      # هل هو h2, h3, intro...
         title_text = section.get('title', '')   # نص العنوان
         sec_type = section.get('type', 'text')  # نوع المحتوى
         
-        # أ) كتابة العنوان في HTML (ما عدا المقدمة لا نكتب لها عنوان)
-        if level == 'h2':
+        # أ) كتابة العنوان في HTML (ما عدا المقدمة والخاتمة لا نكتب لها عنوان منفصل)
+        # لأن المحتوى نفسه سيحتوي على العنوان
+        if sec_type not in ['introduction', 'conclusion']:
             full_html += f"<h2>{title_text}</h2>\n"
-        elif level == 'h3':
-            full_html += f"<h3>{title_text}</h3>\n"
         
         # ب) طلب المحتوى من Gemini
         prompt = get_content_prompt(sec_type, title_text, keyword)
@@ -320,6 +318,7 @@ def main():
             # سنجرب وضعه، إذا لم يعمل لن يوقف السكريبت.
             pass 
 
+        # نشر المقالة كمسودة (isDraft=True)
         service.posts().insert(blogId=BLOG_ID, body=post_data, isDraft=True).execute()
         print(f"✅ Published draft: {article['title']}")
 
