@@ -40,21 +40,28 @@ def clean_json_response(text):
     text = text.replace("```json", "").replace("```", "").strip()
     return text
 
-def translate_to_english(text):
-    """ترجمة النص إلى الإنجليزية"""
+def create_permalink_gemini(keyword_arabic):
+    """توليد رابط ثابت باستخدام Gemini لضمان عدم توقف المكتبات الخارجية"""
     try:
-        translator = Translator()
-        translated = translator.translate(text, src='ar', dest='en')
-        return translated.text
+        model = get_gemini_model() # نستخدم نفس الموديل المهيأ
+        prompt = f"""
+        Act as a URL slug generator.
+        Task: Translate this Arabic text "{keyword_arabic}" to English, convert to lowercase, remove special characters, and replace spaces with hyphens (-).
+        Output: Just the final slug string. No explanation.
+        Example Input: الربح من الانترنت
+        Example Output: profit-from-internet
+        """
+        response = model.generate_content(prompt)
+        permalink = response.text.strip().replace("\n", "").replace(" ", "")
+        
+        # تنظيف إضافي لضمان عدم وجود رموز غريبة
+        permalink = re.sub(r'[^a-z0-9\-]', '', permalink)
+        return permalink
     except Exception as e:
-        print(f"⚠️ Translation error: {e}")
-        return text
+        print(f"⚠️ Permalink Error: {e}")
+        # خطة بديلة في حال فشل Gemini نستخدم مكتبة re فقط لعمل slug عربي
+        return re.sub(r'[^0-9\u0600-\u06FF]+', '-', keyword_arabic).strip('-')
 
-def create_permalink(keyword_arabic):
-    """تجهيز الرابط الثابت: ترجمة للإنجليزية، حروف صغيرة واستبدال المسافات بشرط"""
-    keyword_english = translate_to_english(keyword_arabic)
-    permalink = re.sub(r'[^a-z0-9]+', '-', keyword_english.lower()).strip('-')
-    return permalink
 
 def clean_text_symbols(text):
     """
@@ -399,7 +406,7 @@ def write_full_article(article_data):
     structure = generate_article_structure(title, keyword)
     
     # إنشاء الرابط الثابت
-    permalink = create_permalink(keyword)
+    permalink = create_permalink_gemini(keyword)
     
     # بداية المقال بمعلومات Meta
     full_html = f"""
