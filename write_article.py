@@ -310,8 +310,7 @@ def main():
             "blog": {"id": BLOG_ID},
             "title": article['title'],
             "content": post_body,
-            "labels": [category_name],
-            "status": "DRAFT"
+            "labels": [category_name]
         }
         
         # محاولة تعيين الوصف
@@ -321,7 +320,7 @@ def main():
             # سنجرب وضعه، إذا لم يعمل لن يوقف السكريبت.
             pass 
 
-        service.posts().insert(blogId=BLOG_ID, body=post_data).execute()
+        service.posts().insert(blogId=BLOG_ID, body=post_data, isDraft=True).execute()
         print(f"✅ Published draft: {article['title']}")
 
         # --- التحكم في الحذف (شرط التجربة) ---
