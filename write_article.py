@@ -169,23 +169,38 @@ def generate_article_structure(title, keyword):
 
 def get_synonyms(keyword):
     """
-    توليد مرادفات للكلمة المفتاحية
-    يمكن تحسينها لاحقاً باستخدام API أو قاموس
+    توليد مرادفات للكلمة المفتاحية تلقائياً باستخدام Gemini
     """
-    # قائمة بسيطة من المرادفات الشائعة
-    synonyms = [keyword]
-    
-    # إضافة بعض الاختلافات البسيطة
-    if 'AI' in keyword or 'الذكاء الاصطناعي' in keyword:
-        synonyms.extend(['الذكاء الاصطناعي', 'AI', 'الذكاء الصناعي', 'تقنيات الذكاء'])
-    
-    if 'ChatGPT' in keyword:
-        synonyms.extend(['ChatGPT', 'شات جي بي تي', 'نموذج GPT'])
-    
-    if 'برومبت' in keyword or 'Prompt' in keyword:
-        synonyms.extend(['برومبت', 'البرومبتات', 'هندسة البرومبتات', 'prompt engineering'])
-    
-    return list(set(synonyms))  # إزالة التكرار
+    try:
+        model = get_gemini_model()
+        prompt = f"""
+        أعطني 5-10 مرادفات ومصطلحات مشابهة للكلمة المفتاحية: "{keyword}"
+        
+        المطلوب:
+        - مرادفات بالعربية
+        - مرادفات بالإنجليزية (إن وجدت)
+        - مصطلحات شائعة في نفس المجال
+        
+        أعطني النتيجة كقائمة JSON فقط، مثال:
+        ["مرادف 1", "مرادف 2", "synonym 3"]
+        
+        لا تضف أي نص آخر غير JSON.
+        """
+        
+        response = model.generate_content(prompt)
+        synonyms_text = clean_json_response(response.text)
+        synonyms = json.loads(synonyms_text)
+        
+        # إضافة الكلمة الأساسية
+        synonyms.insert(0, keyword)
+        
+        print(f"   📝 Found {len(synonyms)} synonyms for '{keyword}'")
+        return list(set(synonyms))  # إزالة التكرار
+        
+    except Exception as e:
+        print(f"   ⚠️ Could not generate synonyms: {e}")
+        # في حالة الفشل، نرجع الكلمة الأساسية فقط
+        return [keyword]
 
 def make_keywords_bold(text, keyword):
     """جعل الكلمة المفتاحية ومرادفاتها عريضة في النص"""
