@@ -656,7 +656,9 @@ def write_full_article(article_data):
                                 print(f"   ❌ Motivation error: {e}")
                                 break
                 
-                time.sleep(30)
+                # انتظار متغير بناءً على عدد المحاولات
+                wait_time = 20 + (retries * 5)  # يبدأ من 20 ويزيد تدريجياً
+                time.sleep(wait_time)
             
             except Exception as e:
                 if "429" in str(e) or "quota" in str(e).lower():
@@ -682,79 +684,80 @@ def write_full_article(article_data):
     return full_html
 
 def main():
-    auth = Auth.Token(GITHUB_TOKEN)
-    g = Github(auth=auth)
-
-    repo = g.get_repo(REPO_NAME)
-    
-    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
-    if not plan_files:
-        print("No content plans found.")
-        return
-
-    selected_file = random.choice(plan_files)
-    print(f"📂 Selected plan: {selected_file.name}")
-    
-    content_json = json.loads(selected_file.decoded_content.decode("utf-8"))
-    
-    if not content_json:
-        print("Plan is empty.")
-        return
-
-    article = content_json[0]
-    
-    post_body = write_full_article(article)
-    
     try:
-        service = get_blogger_service()
-        category_name = selected_file.name.replace("content_plan_", "").replace(".json", "").replace("_", " ")
+        logger.info("🚀 Starting article generation process...")
         
-        post_data = {
-            "kind": "blogger#post",
-            "blog": {"id": BLOG_ID},
-            "title": article['title'],
-            "content": post_body,
-            "labels": [category_name],
-        }
+        auth = Auth.Token(GITHUB_TOKEN)
+        g = Github(auth=auth)
+        repo = g.get_repo(REPO_NAME)
         
-        result = service.posts().insert(blogId=BLOG_ID, body=post_data, isDraft=True).execute()
-        print(f"✅ Published draft: {article['title']}")
-        print(f"🔗 Permalink and Meta info added at the top of the post content")
+        plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
+        if not plan_files:
+            logger.warning("No content plans found.")
+            return
 
-        if not TEST_MODE:
-            new_plan = content_json[1:]
-            updated_content = json.dumps(new_plan, indent=2, ensure_ascii=False)
-            repo.update_file(selected_file.path, f"Published: {article['title']}", updated_content, selected_file.sha)
-            print("🗑️ Removed article from plan.")
+        selected_file = random.choice(plan_files)
+        logger.info(f"📂 Selected plan: {selected_file.name}")
+        
+        content_json = json.loads(selected_file.decoded_content.decode("utf-8"))
+        
+        if not content_json:
+            logger.warning("Plan is empty.")
+            return
 
-            try:
-                pub_file = repo.get_contents("published_titles.txt")
-                new_pub_content = pub_file.decoded_content.decode("utf-8") + "\n" + article['title']
-                repo.update_file("published_titles.txt", "Add published title", new_pub_content, pub_file.sha)
-            except:
-                repo.create_file("published_titles.txt", "Create published list", article['title'])
-        else:
-            print("⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.")
+        article = content_json[0]
+        
+        logger.info(f"📝 Generating article: {article['title']}")
+        post_body = write_full_article(article)
+        
+        try:
+            service = get_blogger_service()
+            category_name = selected_file.name.replace("content_plan_", "").replace(".json", "").replace("_", " ")
+            
+            post_data = {
+                "kind": "blogger#post",
+                "blog": {"id": BLOG_ID},
+                "title": article['title'],
+                "content": post_body,
+                "labels": [category_name],
+            }
+            
+            result = service.posts().insert(blogId=BLOG_ID, body=post_data, isDraft=True).execute()
+            logger.info(f"✅ Published draft: {article['title']}")
+            logger.info(f"🔗 Permalink and Meta info added at the top of the post content")
+
+            if not TEST_MODE:
+                new_plan = content_json[1:]
+                updated_content = json.dumps(new_plan, indent=2, ensure_ascii=False)
+                repo.update_file(selected_file.path, f"Published: {article['title']}", updated_content, selected_file.sha)
+                logger.info("🗑️ Removed article from plan.")
+
+                try:
+                    pub_file = repo.get_contents("published_titles.txt")
+                    new_pub_content = pub_file.decoded_content.decode("utf-8") + "\n" + article['title']
+                    repo.update_file("published_titles.txt", "Add published title", new_pub_content, pub_file.sha)
+                except:
+                    repo.create_file("published_titles.txt", "Create published list", article['title'])
+            else:
+                logger.info("⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.")
+
+        except Exception as e:
+            logger.error(f"❌ Error publishing to Blogger: {e}")
+            
+            # نقل الملف الفاشل
+            if not TEST_MODE:
+                try:
+                    failed_content = selected_file.decoded_content.decode("utf-8")
+                    failed_path = f"failed_plans/{selected_file.name}"
+                    repo.create_file(failed_path, f"Move failed plan: {selected_file.name}", failed_content)
+                    repo.delete_file(selected_file.path, f"Remove failed plan: {selected_file.name}", selected_file.sha)
+                    logger.warning(f"⚠️ Moved {selected_file.name} to 'failed_plans' directory for inspection.")
+                except Exception as move_error:
+                    logger.error(f"⚠️ Could not move failed file: {move_error}")
 
     except Exception as e:
-        print(f"❌ Error publishing to Blogger: {e}")
-        
-        # --- الإضافة الجديدة: نقل الملف الفاشل ---
-        if not TEST_MODE:
-            try:
-                # 1. قراءة محتوى الملف الحالي
-                failed_content = selected_file.decoded_content.decode("utf-8")
-                
-                # 2. إنشاء الملف في مجلد failed_plans
-                failed_path = f"failed_plans/{selected_file.name}"
-                repo.create_file(failed_path, f"Move failed plan: {selected_file.name}", failed_content)
-                
-                # 3. حذف الملف من المجلد الأصلي plans
-                repo.delete_file(selected_file.path, f"Remove failed plan: {selected_file.name}", selected_file.sha)
-                
-                print(f"⚠️ Moved {selected_file.name} to 'failed_plans' directory for inspection.")
-            except Exception as move_error:
-                print(f"⚠️ Could not move failed file: {move_error}")
+        logger.error(f"❌ Critical error in main(): {e}", exc_info=True)
+        raise  # مهم! عشان GitHub Actions يعرف إن فيه خطأ
 
 if __name__ == "__main__":
     main()
