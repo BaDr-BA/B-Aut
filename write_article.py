@@ -169,8 +169,7 @@ def get_gemini_model():
     return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
 
 def generate_article_structure(title, keyword):
-    """المرحلة 1: بناء الهيكل الهندسي للمقال"""
-    model = get_gemini_model()
+    """المرحلة 1: بناء الهيكل الهندسي للمقال مع إعادة المحاولة"""
     
     prompt = f"""
     اريد هيكل كامل لمقال عنوانه: "{title}"
@@ -203,35 +202,45 @@ def generate_article_structure(title, keyword):
     - لا تكرر نفس العنوان
     """
 
-    try:
-        # التغيير: نطلب الرد كنص عادي ثم ننظفه لتجنب مشاكل الـ Schema
-        response = model.generate_content(prompt)
-        
-        # تنظيف النص واستخراج الـ JSON
-        clean_text = clean_json_response(response.text)
-        structure = json.loads(clean_text)
-        
-        # كود التحقق من التكرار
-        titles_seen = set()
-        unique_structure = []
-        for item in structure:
-            if item['title'] not in titles_seen:
-                titles_seen.add(item['title'])
-                unique_structure.append(item)
+    # محاولة التوليد 3 مرات في حالة الحظر
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            model = get_gemini_model() # تغيير الموديل مع كل محاولة
+            response = model.generate_content(prompt)
+            
+            clean_text = clean_json_response(response.text)
+            structure = json.loads(clean_text)
+            
+            # التحقق من التكرار
+            titles_seen = set()
+            unique_structure = []
+            for item in structure:
+                if item['title'] not in titles_seen:
+                    titles_seen.add(item['title'])
+                    unique_structure.append(item)
+            
+            if len(unique_structure) > 3: # تأكد أن الهيكل محترم مش قصير
+                return unique_structure
+                
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                wait_time = 60 * (attempt + 1)
+                print(f"⚠️ Structure Quota hit! Waiting {wait_time}s... ({attempt+1}/{max_retries})")
+                time.sleep(wait_time)
             else:
-                print(f"⚠️ Skipping duplicate title: {item['title']}")
-        
-        return unique_structure
-        
-    except Exception as e:
+                print(f"⚠️ Structure Error: {e}")
+                time.sleep(5)
 
-        print(f"⚠️ Failed to generate structure: {e}")
-        return [
-            {"level": "intro", "type": "introduction", "title": "مقدمة"},
-            {"level": "h2", "type": "text_paragraph", "title": f"معلومات عن {keyword}"},
-            {"level": "h2", "type": "list_bullet", "title": "أهم النقاط"},
-            {"level": "h2", "type": "conclusion", "title": "خاتمة"}
-        ]
+    # الخطة البديلة (فقط إذا فشلت كل المحاولات)
+    print("⚠️ All structure attempts failed. Using backup plan.")
+    return [
+        {"level": "intro", "type": "introduction", "title": "مقدمة"},
+        {"level": "h2", "type": "text_paragraph", "title": f"معلومات عن {keyword}"},
+        {"level": "h2", "type": "list_bullet", "title": "أهم النقاط"},
+        {"level": "h2", "type": "faq", "title": "أسئلة شائعة"},
+        {"level": "h2", "type": "conclusion", "title": "خاتمة"}
+    ]
 
 def get_synonyms(keyword):
     """
