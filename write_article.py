@@ -158,7 +158,6 @@ def get_gemini_model():
     genai.configure(api_key=key)
     
     models_list = [
-        'gemini-3-flash-preview',    
         'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini-2.5-flash-lite',
@@ -203,19 +202,14 @@ def generate_article_structure(title, keyword):
     - استخدم "h3" للعناوين الفرعية
     - لا تكرر نفس العنوان
     """
-    
-    # إعداد الكونفيج الجديد للإجبار على JSON
-    generation_config = {
-        "response_mime_type": "application/json",
-        "response_schema": list[dict[str, str]]
-    }
 
     try:
-        # التغيير هنا: تمرير generation_config
-        response = model.generate_content(prompt, generation_config=generation_config)
+        # التغيير: نطلب الرد كنص عادي ثم ننظفه لتجنب مشاكل الـ Schema
+        response = model.generate_content(prompt)
         
-        # لم نعد بحاجة لدالة clean_json_response لأن الرد نظيف 100%
-        structure = json.loads(response.text)
+        # تنظيف النص واستخراج الـ JSON
+        clean_text = clean_json_response(response.text)
+        structure = json.loads(clean_text)
         
         # كود التحقق من التكرار
         titles_seen = set()
@@ -230,6 +224,7 @@ def generate_article_structure(title, keyword):
         return unique_structure
         
     except Exception as e:
+
         print(f"⚠️ Failed to generate structure: {e}")
         return [
             {"level": "intro", "type": "introduction", "title": "مقدمة"},
@@ -657,7 +652,7 @@ def write_full_article(article_data):
                                 break
                 
                 # انتظار متغير بناءً على عدد المحاولات
-                wait_time = 20 + (retries * 5)  # يبدأ من 20 ويزيد تدريجياً
+                wait_time = 40 + (retries * 10)  # يبدأ من 40 ويزيد تدريجياً
                 time.sleep(wait_time)
             
             except Exception as e:
