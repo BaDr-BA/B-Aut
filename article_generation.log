@@ -1,0 +1,7 @@
+2026-01-17 07:56:36,714 - INFO - 🚀 Starting article generation process...
+2026-01-17 07:56:37,379 - INFO - 📂 Selected plan: content_plan_أدوات AI.json
+2026-01-17 07:56:37,753 - INFO - 📝 Generating article: أفضل 10 أدوات AI للكتابة: أطلق العنان لإبداعك بذكاء في 2024
+2026-01-17 08:16:04,496 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-17 08:16:05,262 - INFO - ✅ Published draft: أفضل 10 أدوات AI للكتابة: أطلق العنان لإبداعك بذكاء في 2024
+2026-01-17 08:16:05,262 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-17 08:16:05,262 - INFO - ⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.
