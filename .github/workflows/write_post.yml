@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 */8 * * *'  # كل 8 ساعات بدل 6 (أكثر أماناً)
 
+permissions:      # <--- هذا هو الجزء الناقص المهم جداً
+  contents: write # <--- هذا يعطي البوت صلاحية التعديل والرفع
+
 jobs:
   write-post:
     runs-on: ubuntu-latest
