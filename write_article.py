@@ -11,6 +11,18 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from googletrans import Translator
 import typing_extensions as typing
 from github import Github, Auth
+import logging
+
+# إعداد الـ Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('article_generation.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- وضع الاختبار ---
 TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
