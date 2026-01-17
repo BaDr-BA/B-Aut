@@ -245,50 +245,84 @@ def get_synonyms(keyword):
     try:
         model = get_gemini_model()
         prompt = f"""
-        أعطني 5-10 مرادفات ومصطلحات مشابهة للكلمة المفتاحية: "{keyword}"
+        أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية.
         
-        المطلوب:
-        - مرادفات بالعربية
-        - مرادفات بالإنجليزية (إن وجدت)
-        - مصطلحات شائعة في نفس المجال
+        المطلوب: أعطني من 7 إلى 70 كلمة مفتاحية مرادفة أو ذات صلة قوية بالكلمة الأساسية: "{keyword}"
         
-        أعطني النتيجة كقائمة JSON فقط، مثال:
-        ["مرادف 1", "مرادف 2", "synonym 3"]
+        الشروط:
+        1. الكلمات يجب أن تكون ذات صلة مباشرة ومنطقية بالكلمة الأساسية
+        2. الكلمات يجب أن تكون من Google Keyword Planner, Ubersuggest, SEMrush, Ahrefs, Keywordtool.io, AnswerThePublic, Google Trends, وغيرهم
+        3. تنوّع بين المرادفات بالعربية والإنجليزية (إذا وُجد)
+        4. أضف مصطلحات شائعة يستخدمها الباحثون في جوجل (إذا وُجد)
+        5. ركّز على الكلمات القصيرة (Short-tail keywords) والكلمات الطويلة (Long-tail keywords) المفيدة للـ SEO الجديد
+        6. تجنب الكلمات العامة جداً أو البعيدة عن الموضوع
         
-        لا تضف أي نص آخر غير JSON.
+        أعطني النتيجة كقائمة JSON بسيطة فقط، مثال:
+        ["مرادف 1", "مرادف 2", "مصطلح مشابه 3", "keyword 4"]
+        
+        ⚠️ مهم جداً: 
+        - لا تضف أي نص أو شرح قبل أو بعد JSON
+        - JSON فقط بدون أي كلام
+        - لا تستخدم markdown أو ```
         """
         
         response = model.generate_content(prompt)
         synonyms_text = clean_json_response(response.text)
+        
+        # محاولة تحويل النص لـ JSON
         synonyms = json.loads(synonyms_text)
         
-        # إضافة الكلمة الأساسية
-        synonyms.insert(0, keyword)
+        # التأكد أنها قائمة وليست dictionary
+        if isinstance(synonyms, dict):
+            synonyms = list(synonyms.values())
         
-        print(f"   📝 Found {len(synonyms)} synonyms for '{keyword}'")
-        return list(set(synonyms))  # إزالة التكرار
+        # تنظيف وإضافة الكلمة الأساسية
+        synonyms = [s.strip() for s in synonyms if s.strip()]
+        if keyword not in synonyms:
+            synonyms.insert(0, keyword)
+        
+        # إزالة التكرار والحد الأقصى 70 كلمة
+        synonyms = list(dict.fromkeys(synonyms))[:70]
+        
+        print(f"   📝 Generated {len(synonyms)} synonyms for '{keyword}'")
+        return synonyms
         
     except Exception as e:
         print(f"   ⚠️ Could not generate synonyms: {e}")
         # في حالة الفشل، نرجع الكلمة الأساسية فقط
         return [keyword]
 
-def make_keywords_bold(text, keyword):
-    """جعل الكلمة المفتاحية ومرادفاتها عريضة في النص"""
-    synonyms = get_synonyms(keyword)
+def make_keywords_bold(text, keyword, synonyms_list=None):
+    """
+    جعل الكلمة المفتاحية ومرادفاتها عريضة في النص
+    مع تجنب التكرار والتأكد من عدم كسر HTML
+    """
+    if synonyms_list is None:
+        synonyms_list = get_synonyms(keyword)
     
-    for syn in synonyms:
-        if not syn.strip():
+    # ترتيب المرادفات من الأطول للأقصر (عشان نتجنب استبدال جزء من كلمة)
+    synonyms_sorted = sorted(synonyms_list, key=len, reverse=True)
+    
+    for syn in synonyms_sorted:
+        if not syn.strip() or len(syn.strip()) < 2:
             continue
-        # البحث عن الكلمة وجعلها bold (مع تجنب جعلها bold مرتين)
-        # نستخدم negative lookahead/lookbehind لتجنب الكلمات التي بالفعل داخل <b>
-        pattern = r'(?<!<b>)' + re.escape(syn) + r'(?!</b>)'
-        replacement = f'<b>{syn}</b>'
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        
+        # تجنب الكلمات التي بالفعل داخل <b> tags
+        # نبحث عن الكلمة كاملة (word boundary)
+        pattern = r'(?<!<b>)(?<!<b>.)(\b' + re.escape(syn) + r'\b)(?!</b>)(?!.</b>)'
+        
+        # استبدال الكلمة بنفسها لكن Bold
+        def replace_with_bold(match):
+            return f'<b>{match.group(1)}</b>'
+        
+        text = re.sub(pattern, replace_with_bold, text, flags=re.IGNORECASE)
+    
+    # إزالة أي bold مزدوج قد يحدث
+    text = re.sub(r'<b>\s*<b>(.*?)</b>\s*</b>', r'<b>\1</b>', text)
     
     return text
 
-def get_content_prompt(section_type, section_title, keyword):
+def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
     """اختيار البرومبت المناسب بناءً على نوع القسم"""
     
     prompts = {
@@ -301,7 +335,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - الفقرة الأولى: ثلاث أسطر
         - الفقرة الثانية: ثلاث أسطر
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة "المقدمة:" أو أي عنوان.
         """,
@@ -314,7 +349,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - ثم النقاط التنقيطية
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -326,7 +362,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - القائمة المرقمة
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -338,7 +375,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - ثم الجدول (متجاوب width:100%)
         - اختم بملاحظة قصيرة (200 حرف)
         - بدون CSS معقد
-        - استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي
+        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+        - ⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         ابدأ كتابة الجدول فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -353,7 +391,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - كل إجابة لا تزيد عن سطرين
         - استخدم رموز ◀️ أو ⬌ بين السؤال والجواب
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -366,7 +405,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - في حدود من 2 إلي 4 أسطر
         - تبرز قيمة مضافة لا يعرفها الجميع
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -379,7 +419,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - العيوب (أوماذا تتجنب) (نقاط)
         - اختم بملاحظة قصيرة (200 حرف) تلخص وجهة نظرك كخبير
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -391,7 +432,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - النقاط بالإيموجي
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -403,7 +445,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - في حدود من 2 إلى 4 أسطر
         - تشجع أيضاً على التعليق والمشاركة بإسلوب لا واعي
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون "الخاتمة:" أو عناوين.
         """,
         
@@ -415,7 +458,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - كل فقرة 3 أسطر بحد أقصى
         - مسافة بسيطة بين الفقرات
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -430,7 +474,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
         - داخل div بخلفية مناسبة
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:3]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
         
@@ -441,7 +486,8 @@ def get_content_prompt(section_type, section_title, keyword):
         - أسلوب بشري جذاب بعيداً عن الصيغ البيعية المكررة
         - تشجع على إكمال القراءة
         
-        استخدم الكلمة المفتاحية "{keyword}" ومرادفاتها بشكل طبيعي.
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:1]) if synonyms_list else keyword}
+		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ فوراً في الكتابة بدون أي مقدمات.
         """
     }
@@ -468,19 +514,25 @@ def write_full_article(article_data):
     
     print(f"🏗️ Generating structure for: {title}")
     structure = generate_article_structure(title, keyword)
-    
+
+    # توليد المرادفات مرة واحدة في البداية
+    print(f"🔍 Generating synonyms for keyword: {keyword}")
+    synonyms = get_synonyms(keyword)
+    print(f"   ✅ Synonyms: {', '.join(synonyms[:5])}{'...' if len(synonyms) > 5 else ''}")
+
     # إنشاء الرابط الثابت
     permalink = create_permalink_gemini(keyword)
     
     # بداية المقال بمعلومات Meta
     full_html = f"""
-<!-- ===== معلومات SEO للنسخ واللصق =====
-الرابط الثابت المخصص: {permalink}
-وصف البحث (Meta Description): {meta_description}
-الكلمة المفتاحية: {keyword}
-========================================= -->
+    <!-- ===== معلومات SEO للنسخ واللصق =====
+    الرابط الثابت المخصص: {permalink}
+    وصف البحث (Meta Description): {meta_description}
+    الكلمة المفتاحية: {keyword}
+    المرادفات: {', '.join(synonyms[:10])}
+    ========================================= -->
 
-"""
+    """
     
     # بدء جلسة الشات
     model = get_gemini_model()
@@ -521,7 +573,7 @@ def write_full_article(article_data):
             full_html += f"<h3>{title_text}</h3>\n"
         
         # طلب المحتوى
-        prompt = get_content_prompt(sec_type, title_text, keyword)
+        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
         
         success = False
@@ -537,8 +589,8 @@ def write_full_article(article_data):
                 # تنظيف النص من الرموز غير المرغوبة
                 content = clean_text_symbols(content)
                 
-                # جعل الكلمات المفتاحية عريضة
-                content = make_keywords_bold(content, keyword)
+                # جعل الكلمات المفتاحية ومرادفاتها عريضة
+                content = make_keywords_bold(content, keyword, synonyms)
                 
                 # التحقق من أن المحتوى ليس فارغاً
                 if len(content.strip()) < 50:
@@ -554,7 +606,7 @@ def write_full_article(article_data):
                 # الإضافات المحشورة
                 if sec_type == 'introduction':
                     print("   -> Injecting Summary Box...")
-                    summary_prompt = get_content_prompt("summary_box", "ملخص سريع", keyword)
+                    summary_prompt = get_content_prompt("summary_box", "ملخص سريع", keyword, synonyms)
                     summary_prompt += "\n\nأعطني المحتوى بصيغة HTML فقط بدون ```html"
                     
                     sum_retries = 0
@@ -564,7 +616,7 @@ def write_full_article(article_data):
                             resp_sum = chat.send_message(summary_prompt)
                             clean_sum = resp_sum.text.replace("```html", "").replace("```", "").strip()
                             clean_sum = clean_text_symbols(clean_sum)
-                            clean_sum = make_keywords_bold(clean_sum, keyword)
+                            clean_sum = make_keywords_bold(clean_sum, keyword, synonyms)
                             full_html += clean_sum + "\n<br>\n"
                             sum_success = True
                             time.sleep(30)
@@ -580,7 +632,7 @@ def write_full_article(article_data):
 
                 if i == mid_index:
                     print("   -> Injecting Motivation Box...")
-                    mot_prompt = get_content_prompt("motivation_box", "تحفيز القراءة", keyword)
+                    mot_prompt = get_content_prompt("motivation_box", "تحفيز القراءة", keyword, synonyms)
                     mot_prompt += "\n\nأعطني المحتوى بصيغة HTML فقط بدون ```html"
                     
                     mot_retries = 0
@@ -590,7 +642,7 @@ def write_full_article(article_data):
                             resp_mot = chat.send_message(mot_prompt)
                             clean_mot = resp_mot.text.replace("```html", "").replace("```", "").strip()
                             clean_mot = clean_text_symbols(clean_mot)
-                            clean_mot = make_keywords_bold(clean_mot, keyword)
+                            clean_mot = make_keywords_bold(clean_mot, keyword, synonyms)
                             full_html += f"<div style='text-align:center; margin: 20px 0;'>{clean_mot}</div>\n<br>\n"
                             mot_success = True
                             time.sleep(30)
