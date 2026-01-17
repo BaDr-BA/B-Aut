@@ -511,7 +511,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     return base_prompt
 
 def write_full_article(article_data):
-    """المرحلة 2 & 3: التهيئة والتنفيذ بجلسة واحدة"""
+    """المرحلة 2 & 3: الاستراتيجية البطيئة والمضمونة (السلحفاة)"""
     title = article_data['title']
     keyword = article_data['keyword']
     meta_description = article_data.get('meta_description', '')
@@ -519,171 +519,126 @@ def write_full_article(article_data):
     print(f"🏗️ Generating structure for: {title}")
     structure = generate_article_structure(title, keyword)
 
-    # توليد المرادفات مرة واحدة في البداية
     print(f"🔍 Generating synonyms for keyword: {keyword}")
     synonyms = get_synonyms(keyword)
     print(f"   ✅ Synonyms: {', '.join(synonyms[:5])}{'...' if len(synonyms) > 5 else ''}")
 
-    # إنشاء الرابط الثابت
     permalink = create_permalink_gemini(keyword)
     
-    # بداية المقال بمعلومات Meta
     full_html = f"""
     <!-- ===== معلومات SEO للنسخ واللصق =====
     الرابط الثابت المخصص: {permalink}
     وصف البحث (Meta Description): {meta_description}
     الكلمة المفتاحية: {keyword}
     المرادفات: {', '.join(synonyms[:10])}
-    ========================================= -->
-
+    ===================== -->
     """
     
-    # بدء جلسة الشات
+    # 1. إعداد الجلسة الأولى
     model = get_gemini_model()
     chat = model.start_chat(history=[])
     
-    # تهيئة الأسلوب
+    setup_prompt = f"""
+    أنت كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة وخبير متخصص في السيو الجديد.
+    
+    قواعد الكتابة:
+    1. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة
+    2. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
+    3. استخدم "{keyword}" ومرادفاتها طبيعياً
+    4. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
+    5. لا تكرر العناوين
+    6. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص
+    
+    مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
+    """
+    
     try:
-        setup_prompt = f"""
-        أنت كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة وخبير متخصص في السيو الجديد.
-        
-        قواعد الكتابة:
-        1. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة
-        2. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
-        3. استخدم "{keyword}" ومرادفاتها طبيعياً
-        4. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
-        5. لا تكرر العناوين
-        6. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص
-        
-        مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
-        """
         chat.send_message(setup_prompt)
-        time.sleep(15)
-    except Exception as e:
-        print(f"⚠️ Setup warning: {e}")
+        print("   ✅ Setup complete. Waiting 10s...")
+        time.sleep(10)
+    except:
+        pass
     
     mid_index = len(structure) // 2
     
-    # المرور على الأقسام
+    # 2. المرور على الأقسام ببطء شديد
     for i, section in enumerate(structure):
         level = section.get('level', 'h2')
         title_text = section.get('title', '')
         sec_type = section.get('type', 'text_paragraph')
         
-        # كتابة العنوان
-        if level == 'h2':
-            full_html += f"<h2>{title_text}</h2>\n"
-        elif level == 'h3':
-            full_html += f"<h3>{title_text}</h3>\n"
+        # إضافة العناوين HTML
+        if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
+        elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
         
-        # طلب المحتوى
+        # تجهيز البرومبت
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
         
+        # محاولات الكتابة
         success = False
         retries = 0
-        max_retries = 5
+        max_retries = 3 
         
         while not success and retries < max_retries:
             try:
-                print(f"   - Writing section: {title_text}...")
+                print(f"   ✍️ Writing: {title_text}...")
+                
+                # إذا كانت محاولة معادة، نفتح جلسة جديدة (فكرتك)
+                if retries > 0:
+                    print("   🔄 Starting NEW session due to error...")
+                    model = get_gemini_model()
+                    chat = model.start_chat(history=[]) # جلسة نظيفة
+                    try:
+                        chat.send_message(setup_prompt) # إعادة تعليمات الخبير
+                    except:
+                        pass
+
+                # الإرسال
                 response = chat.send_message(prompt)
                 content = response.text.replace("```html", "").replace("```", "").strip()
-                
-                # تنظيف النص من الرموز غير المرغوبة
                 content = clean_text_symbols(content)
-                
-                # جعل الكلمات المفتاحية ومرادفاتها عريضة
                 content = make_keywords_bold(content, keyword, synonyms)
                 
-                # التحقق من أن المحتوى ليس فارغاً
-                if len(content.strip()) < 50:
-                    print(f"   ⚠️ Content too short, retrying...")
-                    retries += 1
-                    time.sleep(20)
-                    continue
+                if len(content) < 50: raise Exception("Content too short")
                 
                 full_html += content + "\n<br>\n"
-                print(f"   ✅ Done.")
                 success = True
+                print(f"   ✅ Done.")
                 
-                # الإضافات المحشورة
+                # === جوهر الحل: الانتظار الاجباري ===
+                # ننتظر 70 ثانية لضمان مرور "دقيقة جوجل" وتصفير العداد
+                print("   ⏳ Sleeping 70s to avoid Quota limit...")
+                time.sleep(70) 
+                
+                # (الكود الخاص بالـ Summary/Motivation نفس المنطق)
                 if sec_type == 'introduction':
-                    print("   -> Injecting Summary Box...")
-                    summary_prompt = get_content_prompt("summary_box", "ملخص سريع", keyword, synonyms)
-                    summary_prompt += "\n\nأعطني المحتوى بصيغة HTML فقط بدون ```html"
-                    
-                    sum_retries = 0
-                    sum_success = False
-                    while not sum_success and sum_retries < max_retries:
-                        try:
-                            resp_sum = chat.send_message(summary_prompt)
-                            clean_sum = resp_sum.text.replace("```html", "").replace("```", "").strip()
-                            clean_sum = clean_text_symbols(clean_sum)
-                            clean_sum = make_keywords_bold(clean_sum, keyword, synonyms)
-                            full_html += clean_sum + "\n<br>\n"
-                            sum_success = True
-                            time.sleep(30)
-                        except Exception as e:
-                            if "429" in str(e) or "quota" in str(e).lower():
-                                sum_retries += 1
-                                wait_time = 40 + (sum_retries * 10)
-                                print(f"   ⚠️ Summary quota hit! Waiting {wait_time}s... ({sum_retries}/{max_retries})")
-                                time.sleep(wait_time)
-                            else:
-                                print(f"   ❌ Summary error: {e}")
-                                break
+                    print("   -> Injecting Summary...")
+                    try:
+                        sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
+                        res = chat.send_message(sum_prompt)
+                        full_html += clean_text_symbols(res.text.replace("```html","").replace("```","")) + "\n<br>\n"
+                        print("   ⏳ Sleeping 70s after Summary...")
+                        time.sleep(70)
+                    except: pass
 
                 if i == mid_index:
-                    print("   -> Injecting Motivation Box...")
-                    mot_prompt = get_content_prompt("motivation_box", "تحفيز القراءة", keyword, synonyms)
-                    mot_prompt += "\n\nأعطني المحتوى بصيغة HTML فقط بدون ```html"
-                    
-                    mot_retries = 0
-                    mot_success = False
-                    while not mot_success and mot_retries < max_retries:
-                        try:
-                            resp_mot = chat.send_message(mot_prompt)
-                            clean_mot = resp_mot.text.replace("```html", "").replace("```", "").strip()
-                            clean_mot = clean_text_symbols(clean_mot)
-                            clean_mot = make_keywords_bold(clean_mot, keyword, synonyms)
-                            full_html += f"<div style='text-align:center; margin: 20px 0;'>{clean_mot}</div>\n<br>\n"
-                            mot_success = True
-                            time.sleep(30)
-                        except Exception as e:
-                            if "429" in str(e) or "quota" in str(e).lower():
-                                mot_retries += 1
-                                wait_time = 40 + (mot_retries * 10)
-                                print(f"   ⚠️ Motivation quota hit! Waiting {wait_time}s... ({mot_retries}/{max_retries})")
-                                time.sleep(wait_time)
-                            else:
-                                print(f"   ❌ Motivation error: {e}")
-                                break
-                
-                # انتظار متغير بناءً على عدد المحاولات
-                wait_time = 40 + (retries * 10)  # يبدأ من 40 ويزيد تدريجياً
-                time.sleep(wait_time)
-            
+                    print("   -> Injecting Motivation...")
+                    try:
+                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
+                        res = chat.send_message(mot_prompt)
+                        full_html += f"<div style='text-align:center;'>{clean_text_symbols(res.text.replace('```html','').replace('```',''))}</div>\n<br>\n"
+                        print("   ⏳ Sleeping 70s after Motivation...")
+                        time.sleep(70)
+                    except: pass
+
             except Exception as e:
-                if "429" in str(e) or "quota" in str(e).lower():
-                    retries += 1
-                    wait_time = 40 + (retries * 15)
-                    print(f"   ⚠️ Quota hit! Waiting {wait_time}s before retry {retries}/{max_retries}...")
-                    time.sleep(wait_time)
-                    
-                    if retries == 3:
-                        print("   🔄 Switching to new model...")
-                        model = get_gemini_model()
-                        chat = model.start_chat(history=[])
-                        try:
-                            chat.send_message(setup_prompt)
-                            time.sleep(10)
-                        except:
-                            pass
-                else:
-                    print(f"   ❌ Error: {e}")
-                    full_html += f"<p><i>⚠️ [خطأ في توليد هذا القسم: {title_text}]</i></p>\n"
-                    break
+                retries += 1
+                print(f"   ⚠️ Error ({e}). Switching key & waiting 60s...")
+                time.sleep(60) # انتظار عند الخطأ
+                
+                if retries == max_retries:
+                    full_html += f"<p><i>⚠️ [تعذر الكتابة بسبب الضغط]</i></p>\n"
 
     return full_html
 
