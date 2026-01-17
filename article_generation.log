@@ -19,3 +19,10 @@
 2026-01-17 11:51:24,862 - INFO - ✅ Published draft: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
 2026-01-17 11:51:24,862 - INFO - 🔗 Permalink and Meta info added at the top of the post content
 2026-01-17 11:51:24,863 - INFO - ⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.
+2026-01-17 16:28:49,325 - INFO - 🚀 Starting article generation process...
+2026-01-17 16:28:50,101 - INFO - 📂 Selected plan: content_plan_أدوات AI.json
+2026-01-17 16:28:50,522 - INFO - 📝 Generating article: أفضل 10 أدوات AI للكتابة: أطلق العنان لإبداعك بذكاء في 2024
+2026-01-17 17:23:00,698 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-17 17:23:01,937 - INFO - ✅ Published draft: أفضل 10 أدوات AI للكتابة: أطلق العنان لإبداعك بذكاء في 2024
+2026-01-17 17:23:01,937 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-17 17:23:01,937 - INFO - ⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.
