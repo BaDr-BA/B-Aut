@@ -298,33 +298,61 @@ def get_synonyms(keyword):
 
 def make_keywords_bold(text, keyword, synonyms_list=None):
     """
-    جعل الكلمة المفتاحية ومرادفاتها عريضة في النص
-    مع تجنب التكرار والتأكد من عدم كسر HTML
+    تغميق الكلمات المفتاحية بذكاء:
+    1. لا تقم بعمل بولد إذا كانت الكلمة بالفعل داخل وسم <b> أو <strong>
+    2. لا تكرر البولد
     """
     if synonyms_list is None:
         synonyms_list = get_synonyms(keyword)
     
-    # ترتيب المرادفات من الأطول للأقصر (عشان نتجنب استبدال جزء من كلمة)
-    synonyms_sorted = sorted(synonyms_list, key=len, reverse=True)
+    # دمج الكلمة الأساسية مع المرادفات وترتيبهم من الأطول للأقصر
+    all_terms = [keyword] + synonyms_list
+    all_terms = sorted(list(set(all_terms)), key=len, reverse=True)
     
-    for syn in synonyms_sorted:
-        if not syn.strip() or len(syn.strip()) < 2:
+    # تفكيك النص بناءً على التاجات HTML لمعرفة "أين نحن"
+    # هذا يفصل التاجات عن النصوص
+    tokens = re.split(r'(<[^>]+>)', text)
+    
+    processed_tokens = []
+    is_inside_bold = False # مؤشر: هل نحن الآن داخل منطقة بولد؟
+
+    for token in tokens:
+        # إذا كان التوكن فارغاً نخطاه
+        if not token:
             continue
-        
-        # تجنب الكلمات التي بالفعل داخل <b> tags
-        # نبحث عن الكلمة كاملة (word boundary)
-        pattern = r'(?<!<b>)(?<!<b>.)(\b' + re.escape(syn) + r'\b)(?!</b>)(?!.</b>)'
-        
-        # استبدال الكلمة بنفسها لكن Bold
-        def replace_with_bold(match):
-            return f'<b>{match.group(1)}</b>'
-        
-        text = re.sub(pattern, replace_with_bold, text, flags=re.IGNORECASE)
-    
-    # إزالة أي bold مزدوج قد يحدث
-    text = re.sub(r'<b>\s*<b>(.*?)</b>\s*</b>', r'<b>\1</b>', text)
-    
-    return text
+            
+        # فحص هل هذا التوكن هو تاج HTML
+        if token.startswith('<'):
+            processed_tokens.append(token)
+            
+            # تحديث الحالة: هل دخلنا أو خرجنا من منطقة بولد؟
+            tag_lower = token.lower()
+            if '<b>' in tag_lower or '<strong>' in tag_lower:
+                is_inside_bold = True # نحن الآن داخل بولد، ممنوع التعديل القادم
+            elif '</b>' in tag_lower or '</strong>' in tag_lower:
+                is_inside_bold = False # خرجنا، مسموح التعديل
+        else:
+            # نحن الآن في نص عادي
+            if is_inside_bold:
+                # إذا كنا داخل منطقة بولد، نترك النص كما هو تماماً (حسب طلبك رقم 1)
+                processed_tokens.append(token)
+            else:
+                # مسموح التعديل: نبحث عن الكلمات المفتاحية
+                temp_text = token
+                for term in all_terms:
+                    if not term.strip() or len(term.strip()) < 2: continue
+                    
+                    # نستخدم Regex يستبدل الكلمة فقط إذا لم تكن ملتصقة بكلمات أخرى
+                    # (?<!...) و (?!...) للتأكد من حدود الكلمة العربية والانجليزية
+                    pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(term) + r'(?![\w\u0600-\u06FF])'
+                    
+                    # استبدال بـ <b>term</b>
+                    temp_text = re.sub(pattern, f'<b>{term}</b>', temp_text, flags=re.IGNORECASE)
+                
+                processed_tokens.append(temp_text)
+
+    # إعادة تجميع النص
+    return ''.join(processed_tokens)
 
 def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
     """اختيار البرومبت المناسب بناءً على نوع القسم"""
@@ -523,16 +551,25 @@ def write_full_article(article_data):
     synonyms = get_synonyms(keyword)
     print(f"   ✅ Synonyms: {', '.join(synonyms[:5])}{'...' if len(synonyms) > 5 else ''}")
 
-    permalink = create_permalink_gemini(keyword)
+    # 1. توليد الرابط الإنجليزي (Slug)
+    raw_slug = create_permalink_gemini(keyword)
     
+    # تنظيف الرابط حسب شروطك: حروف صغيرة، استبدال المسافات بشرط، عدم تكرار الشرط
+    final_slug = raw_slug.lower().strip()
+    final_slug = re.sub(r'\s+', '-', final_slug) # المسافات لشرطة
+    final_slug = re.sub(r'-+', '-', final_slug)  # الشرطات المتكررة لشرطة واحدة
+    final_slug = final_slug.strip('-')           # حذف الشرطات من البداية والنهاية
+    
+    # 2. بناء بداية المقال (السطرين المطلوبين)
+    # السطر الأول: الرابط
+    # السطر الثاني: الوصف الميتا
     full_html = f"""
-    <!-- ===== معلومات SEO للنسخ واللصق =====
-    الرابط الثابت المخصص: {permalink}
-    وصف البحث (Meta Description): {meta_description}
-    الكلمة المفتاحية: {keyword}
-    المرادفات: {', '.join(synonyms[:10])}
-    ===================== -->
-    """
+{final_slug}
+<br>
+{meta_description}
+<br>
+<br>
+"""
     
     # 1. إعداد الجلسة الأولى
     model = get_gemini_model()
@@ -602,7 +639,12 @@ def write_full_article(article_data):
                 
                 if len(content) < 50: raise Exception("Content too short")
                 
-                full_html += content + "\n<br>\n"
+                full_html += content
+                
+                # التعديل: إضافة الفاصل فقط إذا لم نكن في آخر عنصر في الهيكل (لتجنب المسافة بعد الخاتمة)
+                if i < len(structure) - 1:
+                    full_html += "\n<br>\n"
+                
                 success = True
                 print(f"   ✅ Done.")
                 
