@@ -225,12 +225,12 @@ def generate_article_structure(title, keyword):
                 
         except Exception as e:
             if "429" in str(e) or "quota" in str(e).lower():
-                wait_time = 65 * (attempt + 1)
+                wait_time = 75 * (attempt + 1)
                 print(f"⚠️ Structure Quota hit! Waiting {wait_time}s... ({attempt+1}/{max_retries})")
                 time.sleep(wait_time)
             else:
                 print(f"⚠️ Structure Error: {e}")
-                time.sleep(10)
+                time.sleep(20)
 
     # الخطة البديلة (فقط إذا فشلت كل المحاولات)
     print("⚠️ All structure attempts failed. Using backup plan.")
@@ -591,8 +591,8 @@ def write_full_article(article_data):
     
     try:
         chat.send_message(setup_prompt)
-        print("   ✅ Setup complete. Waiting 10s...")
-        time.sleep(15)
+        print("   ✅ Setup complete. Waiting 25s...")
+        time.sleep(25)
     except:
         pass
     
@@ -650,8 +650,8 @@ def write_full_article(article_data):
                 
                 # === جوهر الحل: الانتظار الاجباري ===
                 # ننتظر 75 ثانية لضمان مرور "دقيقة جوجل" وتصفير العداد
-                print("   ⏳ Sleeping 75s to avoid Quota limit...")
-                time.sleep(75) 
+                print("   ⏳ Sleeping 85s to avoid Quota limit...")
+                time.sleep(85) 
                 
                 # (الكود الخاص بالـ Summary/Motivation نفس المنطق)
                 if sec_type == 'introduction':
@@ -660,8 +660,8 @@ def write_full_article(article_data):
                         sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
                         res = chat.send_message(sum_prompt)
                         full_html += clean_text_symbols(res.text.replace("```html","").replace("```","")) + "\n<br>\n"
-                        print("   ⏳ Sleeping 75s after Summary...")
-                        time.sleep(75)
+                        print("   ⏳ Sleeping 85s after Summary...")
+                        time.sleep(85)
                     except: pass
 
                 if i == mid_index:
@@ -670,14 +670,14 @@ def write_full_article(article_data):
                         mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
                         res = chat.send_message(mot_prompt)
                         full_html += f"<div style='text-align:center;'>{clean_text_symbols(res.text.replace('```html','').replace('```',''))}</div>\n<br>\n"
-                        print("   ⏳ Sleeping 75s after Motivation...")
-                        time.sleep(75)
+                        print("   ⏳ Sleeping 85s after Motivation...")
+                        time.sleep(85)
                     except: pass
 
             except Exception as e:
                 retries += 1
-                print(f"   ⚠️ Error ({e}). Switching key & waiting 65s...")
-                time.sleep(65) # انتظار عند الخطأ
+                print(f"   ⚠️ Error ({e}). Switching key & waiting 75s...")
+                time.sleep(75) # انتظار عند الخطأ
                 
                 if retries == max_retries:
                     full_html += f"<p><i>⚠️ [تعذر الكتابة بسبب الضغط]</i></p>\n"
