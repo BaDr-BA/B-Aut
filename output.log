@@ -7,129 +7,75 @@ See README for more details:
 https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 
   import google.generativeai as genai
-2026-01-19 02:09:28,205 - INFO - 🚀 Starting article generation process...
-2026-01-19 02:09:28,848 - INFO - 📂 Selected plan: content_plan_ربح من AI.json
-2026-01-19 02:09:29,219 - INFO - 📝 Generating article: اربح من ChatGPT: دليلك الشامل لاستغلال الذكاء الاصطناعي في جني المال
-🏗️ Generating structure for: اربح من ChatGPT: دليلك الشامل لاستغلال الذكاء الاصطناعي في جني المال
-🤖 Using Model: gemini-2.0-flash-lite
-⚠️ Structure Quota hit! Waiting 60s... (1/3)
-🤖 Using Model: gemini-2.0-flash-lite
-⚠️ Structure Quota hit! Waiting 120s... (2/3)
-🤖 Using Model: gemini-2.5-flash
-🔍 Generating synonyms for keyword: الربح من ChatGPT
+2026-01-19 08:39:39,631 - INFO - 🚀 Starting article generation process...
+2026-01-19 08:39:40,470 - INFO - 📂 Selected plan: content_plan_شروحات AI.json
+2026-01-19 08:39:40,949 - INFO - 📝 Generating article: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+🏗️ Generating structure for: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+🤖 Using Model: gemini-2.5-flash-lite
+🔍 Generating synonyms for keyword: تعلم الذكاء الاصطناعي من الصفر
 🤖 Using Model: gemini-2.0-flash
    ⚠️ Could not generate synonyms: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
-Please retry in 9.999407892s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
-  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-, retry_delay {
-  seconds: 9
-}
-]
-   ✅ Synonyms: الربح من ChatGPT
-🤖 Using Model: gemini-2.5-flash-lite
+   ✅ Synonyms: تعلم الذكاء الاصطناعي من الصفر
+🤖 Using Model: gemini-2.0-flash-lite
 ⚠️ Permalink Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+🤖 Using Model: gemini-2.0-flash
+   ✍️ Writing: مقدمة: انطلق في رحلتك نحو عالم الذكاء الاصطناعي المثير...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: مقدمة: انطلق في رحلتك نحو عالم الذكاء الاصطناعي المثير...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.5-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: مقدمة: انطلق في رحلتك نحو عالم الذكاء الاصطناعي المثير...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.5-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: فهم أساسيات الذكاء الاصطناعي: ما هو وكيف يعمل؟...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: فهم أساسيات الذكاء الاصطناعي: ما هو وكيف يعمل؟...
+   🔄 Starting NEW session due to error...
 🤖 Using Model: gemini-2.5-flash
-   ✅ Setup complete. Waiting 10s...
-   ✍️ Writing: مقدمة: عصر جديد للربح مع ChatGPT...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   -> Injecting Summary...
-   ⏳ Sleeping 70s after Summary...
-   ✍️ Writing: ما هو ChatGPT وكيف يغير قواعد اللعبة المالية؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: تعريف الذكاء الاصطناعي بلغة مبسطة...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: الذكاء الاصطناعي التوليدي: محركك الجديد للنمو المالي...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: الأنواع الرئيسية للذكاء الاصطناعي: نقاط أساسية...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: لماذا ChatGPT هو الأداة المثالية لكسب المال في العصر الرقمي؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: لماذا يجب عليك تعلم الذكاء الاصطناعي الآن؟ آفاق المستقبل...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: استراتيجيات مجربة للربح من ChatGPT: اكتشف الفرص الذهبية...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: فرص العمل المستقبلية في مجال الذكاء الاصطناعي...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: الربح من توليد المحتوى: من المقالات إلى الأفكار الإبداعية...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: تطبيقات عملية للذكاء الاصطناعي في حياتنا اليومية...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: كيف تستغل ChatGPT في كتابة المقالات والمدونات الاحترافية؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: مسارات تعلم الذكاء الاصطناعي من الصفر: خارطة طريق مفصلة...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: إيجابيات وسلبيات استخدام ChatGPT لتأليف الكتب الإلكترونية والسيناريوهات...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: الخطوة الأولى: بناء أساس قوي في الرياضيات والبرمجة...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: التسويق الرقمي بذكاء ChatGPT: تعزيز حملاتك الإعلانية...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: مفاهيم الرياضيات الضرورية لعلوم الذكاء الاصطناعي...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: خطوات إنشاء محتوى تسويقي فعال وجذاب باستخدام ChatGPT...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: لغات البرمجة الأكثر شيوعاً في الذكاء الاصطناعي (Python): دليل المبتدئين...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: تحليل بيانات السوق وكتابة نصوص إعلانية مقنعة بالذكاء الاصطناعي...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: الغوص في مجالات الذكاء الاصطناعي: تخصصات رئيسية...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: تطوير الويب والبرمجة: تبسيط المهام البرمجية المعقدة بفضل AI...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: تعلم الآلة (Machine Learning): المحرك الرئيسي للذكاء الاصطناعي...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: استخدام ChatGPT في توليد الأكواد وتصحيح الأخطاء البرمجية بكفاءة...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: التعلم العميق (Deep Learning): ثورة في التعرف على الأنماط...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: بناء أدوات بسيطة وتطبيقات ويب مبتكرة بمساعدة الذكاء الاصطناعي...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: خدمات العملاء والدعم الفني: أتمتة الردود لتحسين التجربة...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: إنشاء روبوتات دردشة (Chatbots) ذكية للشركات الصغيرة والمتوسطة...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   -> Injecting Motivation...
-   ⏳ Sleeping 70s after Motivation...
-   ✍️ Writing: التعليم والتدريب المستمر: استغلال ChatGPT لتقديم خدمات تعليمية متقدمة...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: كيف تصبح مدرسًا خاصًا أو مدربًا رقميًا باستخدام قدرات ChatGPT؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: معالجة اللغات الطبيعية (NLP): فهم اللغة البشرية...
    ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
 * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
-Please retry in 6.872414773s. [links {
+Please retry in 6.311941016s. [links {
   description: "Learn more about Gemini API quotas"
   url: "https://ai.google.dev/gemini-api/docs/rate-limits"
 }
@@ -149,19 +95,338 @@ Please retry in 6.872414773s. [links {
 , retry_delay {
   seconds: 6
 }
-]). Switching key & waiting 60s...
-   ✍️ Writing: كيف تصبح مدرسًا خاصًا أو مدربًا رقميًا باستخدام قدرات ChatGPT؟...
+]). Switching key & waiting 65s...
+   ✍️ Writing: معالجة اللغات الطبيعية (NLP): فهم اللغة البشرية...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.0-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: معالجة اللغات الطبيعية (NLP): فهم اللغة البشرية...
    🔄 Starting NEW session due to error...
 🤖 Using Model: gemini-2.5-flash
-   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 60s...
-   ✍️ Writing: كيف تصبح مدرسًا خاصًا أو مدربًا رقميًا باستخدام قدرات ChatGPT؟...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
+Please retry in 52.299935382s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.5-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 20
+}
+, retry_delay {
+  seconds: 52
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: الرؤية الحاسوبية (Computer Vision): إدراك العالم المرئي...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
+Please retry in 47.156079683s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.5-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 20
+}
+, retry_delay {
+  seconds: 47
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: الرؤية الحاسوبية (Computer Vision): إدراك العالم المرئي...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.0-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: الرؤية الحاسوبية (Computer Vision): إدراك العالم المرئي...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.0-flash
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+Please retry in 36.698805452s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 36
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: أفضل المصادر المجانية والمدفوعة لتعلم الذكاء الاصطناعي...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+Please retry in 31.619390549s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 31
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: أفضل المصادر المجانية والمدفوعة لتعلم الذكاء الاصطناعي...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.5-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: أفضل المصادر المجانية والمدفوعة لتعلم الذكاء الاصطناعي...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.0-flash
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+Please retry in 21.219888683s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 21
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: دورات أونلاين شهيرة للمبتدئين...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+Please retry in 16.147249447s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 16
+}
+]). Switching key & waiting 65s...2026-01-19 09:32:22,426 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-19 09:32:23,642 - INFO - ✅ Published draft: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+2026-01-19 09:32:23,643 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-19 09:32:23,643 - INFO - ⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.
+
+   ✍️ Writing: دورات أونلاين شهيرة للمبتدئين...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.0-flash
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+Please retry in 10.934504268s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 10
+}
+]). Switching key & waiting 65s...
+   ✍️ Writing: دورات أونلاين شهيرة للمبتدئين...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.5-flash-lite
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: كتب أساسية للمبتدئين في الذكاء الاصطناعي...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 65s...
+   ✍️ Writing: كتب أساسية للمبتدئين في الذكاء الاصطناعي...
    🔄 Starting NEW session due to error...
 🤖 Using Model: gemini-2.0-flash-lite
    ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
 * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
 * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
 * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash-lite
-Please retry in 6.412774525s. [links {
+Please retry in 55.420929429s. [links {
   description: "Learn more about Gemini API quotas"
   url: "https://ai.google.dev/gemini-api/docs/rate-limits"
 }
@@ -202,104 +467,41 @@ violations {
   }
 }
 , retry_delay {
-  seconds: 6
+  seconds: 55
 }
-]). Switching key & waiting 60s...2026-01-19 02:57:29,754 - INFO - file_cache is only supported with oauth2client<4.0.0
-2026-01-19 02:57:30,513 - INFO - ✅ Published draft: اربح من ChatGPT: دليلك الشامل لاستغلال الذكاء الاصطناعي في جني المال
-2026-01-19 02:57:30,514 - INFO - 🔗 Permalink and Meta info added at the top of the post content
-2026-01-19 02:57:30,514 - INFO - ⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.
-
-   ✍️ Writing: تحسين الأتمتة والإنتاجية: تحرير وقتك لمزيد من الأرباح باستخدام ChatGPT...
-   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash-lite
-Please retry in 6.350963628s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
-  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-, retry_delay {
-  seconds: 6
-}
-]). Switching key & waiting 60s...
-   ✍️ Writing: تحسين الأتمتة والإنتاجية: تحرير وقتك لمزيد من الأرباح باستخدام ChatGPT...
-   🔄 Starting NEW session due to error...
-🤖 Using Model: gemini-2.5-flash
-   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 60s...
-   ✍️ Writing: تحسين الأتمتة والإنتاجية: تحرير وقتك لمزيد من الأرباح باستخدام ChatGPT...
+]). Switching key & waiting 65s...
+   ✍️ Writing: كتب أساسية للمبتدئين في الذكاء الاصطناعي...
    🔄 Starting NEW session due to error...
 🤖 Using Model: gemini-2.5-flash-lite
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: مهام يومية يمكن لـ ChatGPT أتمتتها لكفاءة أعلى في عملك الحر...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: مواقع ومنصات تفاعلية للتطبيق العملي...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: نصائح ذهبية لتحقيق أقصى ربح من ChatGPT بفاعلية...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: نصائح عملية لتسريع عملية تعلم الذكاء الاصطناعي...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: إتقان فن توجيه الأوامر (Prompt Engineering): مفتاح النجاح...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: تطبيق المفاهيم النظرية على مشاريع حقيقية...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: موازنة الإبداع البشري مع قوة الذكاء الاصطناعي لنتائج فريدة...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: الانضمام إلى مجتمعات الذكاء الاصطناعي والمشاركة الفعالة...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: دمج ChatGPT مع أدوات أخرى لتعظيم الإنتاجية وتحقيق أرباح مبهرة...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: تحديد أهداف واقعية وتتبع التقدم بانتظام...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: الجودة والتحقق: تأكد من دقة المعلومات وموثوقيتها قبل النشر...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: أسئلة شائعة حول تعلم الذكاء الاصطناعي للمبتدئين...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: مقارنة بين استخدام ChatGPT في مجالات ربح مختلفة: الإيجابيات والتحديات...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: هل أحتاج إلى شهادة جامعية لدخول مجال الذكاء الاصطناعي؟...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: أسئلة شائعة حول الربح من ChatGPT (FAQ)...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: ما هي المدة الزمنية المتوقعة لإتقان أساسيات الذكاء الاصطناعي؟...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: هل يمكن لأي شخص البدء بالربح من ChatGPT دون خبرة مسبقة؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: هل يمكنني الحصول على وظيفة في الذكاء الاصطناعي بدون خبرة سابقة؟...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: ما هي التحديات الرئيسية عند استخدام ChatGPT للكسب وكيف نتغلب عليها؟...
+   ⏳ Sleeping 75s to avoid Quota limit...
+   ✍️ Writing: خاتمة: انطلاق رحلتك في عالم الذكاء الاصطناعي بثقة...
    ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: هل استخدام ChatGPT مجاني دائمًا؟ وما هي تكاليف النسخ المدفوعة؟...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
-   ✍️ Writing: خاتمة: مستقبلك المالي بين يديك مع ChatGPT - ابدأ الآن!...
-   ✅ Done.
-   ⏳ Sleeping 70s to avoid Quota limit...
+   ⏳ Sleeping 75s to avoid Quota limit...
