@@ -25,7 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- وضع الاختبار ---
-TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
+TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
 
 # --- الإعدادات والمفاتيح ---
 GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 7) if os.environ.get(f"GEMINI_API_KEY_{i}")]
