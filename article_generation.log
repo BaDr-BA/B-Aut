@@ -124,3 +124,9 @@
 2026-01-22 01:40:45,527 - INFO - ✅ Published draft: كتابة برومبتات ChatGPT احترافية: سر الحصول على إجابات دقيقة ومفيدة
 2026-01-22 01:40:45,527 - INFO - 🔗 Permalink and Meta info added at the top of the post content
 2026-01-22 01:40:46,350 - INFO - 🗑️ Removed article from plan.
+2026-01-22 10:21:15,580 - INFO - 🚀 Starting article generation process...
+2026-01-22 10:21:16,353 - INFO - 📂 Selected plan: content_plan_ربح من AI.json
+2026-01-22 10:21:16,969 - INFO - 📝 Generating article: أفضل 10 أدوات AI لزيادة دخلك: اكتشف كيف تكسب أكثر بذكاء
+2026-01-22 11:40:32,203 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-22 11:40:32,358 - ERROR - ❌ Error publishing to Blogger: ('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', 'error_description': 'Token has been expired or revoked.'})
+2026-01-22 11:40:34,693 - WARNING - ⚠️ Moved content_plan_ربح من AI.json to 'failed_plans' directory for inspection.
