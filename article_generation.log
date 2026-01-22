@@ -117,3 +117,10 @@
 2026-01-21 21:14:02,521 - INFO - ✅ Published draft: تعلم هندسة البرومبتات: دليلك الشامل لإتقان فن محادثة الذكاء الاصطناعي
 2026-01-21 21:14:02,521 - INFO - 🔗 Permalink and Meta info added at the top of the post content
 2026-01-21 21:14:03,143 - INFO - 🗑️ Removed article from plan.
+2026-01-22 01:14:19,983 - INFO - 🚀 Starting article generation process...
+2026-01-22 01:14:20,751 - INFO - 📂 Selected plan: content_plan_برومبتات AI.json
+2026-01-22 01:14:21,182 - INFO - 📝 Generating article: كتابة برومبتات ChatGPT احترافية: سر الحصول على إجابات دقيقة ومفيدة
+2026-01-22 01:40:43,955 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-22 01:40:45,527 - INFO - ✅ Published draft: كتابة برومبتات ChatGPT احترافية: سر الحصول على إجابات دقيقة ومفيدة
+2026-01-22 01:40:45,527 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-22 01:40:46,350 - INFO - 🗑️ Removed article from plan.
