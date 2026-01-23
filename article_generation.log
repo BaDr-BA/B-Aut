@@ -136,3 +136,9 @@
 2026-01-22 20:42:48,601 - INFO - file_cache is only supported with oauth2client<4.0.0
 2026-01-22 20:42:48,709 - ERROR - ❌ Error publishing to Blogger: ('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', 'error_description': 'Token has been expired or revoked.'})
 2026-01-22 20:42:50,932 - WARNING - ⚠️ Moved content_plan_أدوات AI.json to 'failed_plans' directory for inspection.
+2026-01-23 01:13:15,952 - INFO - 🚀 Starting article generation process...
+2026-01-23 01:13:16,662 - INFO - 📂 Selected plan: content_plan_أتمتة AI.json
+2026-01-23 01:13:17,074 - INFO - 📝 Generating article: دليلك الشامل لأتمتة AI: كيف تحول أعمالك بذكاء؟
+2026-01-23 01:48:12,544 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-23 01:48:12,681 - ERROR - ❌ Error publishing to Blogger: ('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', 'error_description': 'Token has been expired or revoked.'})
+2026-01-23 01:48:14,856 - WARNING - ⚠️ Moved content_plan_أتمتة AI.json to 'failed_plans' directory for inspection.
