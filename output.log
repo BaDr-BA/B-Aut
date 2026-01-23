@@ -7,192 +7,33 @@ See README for more details:
 https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 
   import google.generativeai as genai
-2026-01-23 16:16:20,313 - INFO - 🚀 Starting article generation process...
-2026-01-23 16:16:20,951 - INFO - 📂 Selected plan: content_plan_برومبتات AI.json
-2026-01-23 16:16:21,341 - INFO - 📝 Generating article: أفضل برومبتات Midjourney الفنية: أطلق العنان لإبداعك البصري بالذكاء الاصطناعي
-2026-01-23 16:36:31,684 - INFO - file_cache is only supported with oauth2client<4.0.0
-2026-01-23 16:36:31,819 - ERROR - ❌ Error publishing to Blogger: ('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', 'error_description': 'Token has been expired or revoked.'})
-2026-01-23 16:36:34,174 - WARNING - ⚠️ Moved content_plan_برومبتات AI.json to 'failed_plans' directory for inspection.
-🏗️ Generating structure for: أفضل برومبتات Midjourney الفنية: أطلق العنان لإبداعك البصري بالذكاء الاصطناعي
-🤖 Using Model: gemini-2.5-flash-lite
-⚠️ Structure Quota hit! Waiting 75s... (1/3)
-🤖 Using Model: gemini-2.5-flash
-⚠️ Structure Quota hit! Waiting 150s... (2/3)
-🤖 Using Model: gemini-2.0-flash
-⚠️ Structure Quota hit! Waiting 225s... (3/3)
-⚠️ All structure attempts failed. Using backup plan.
-🔍 Generating synonyms for keyword: برومبتات Midjourney الفنية
-🤖 Using Model: gemini-2.0-flash-lite
-   ⚠️ Could not generate synonyms: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash-lite
-Please retry in 8.204051215s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
-  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-, retry_delay {
-  seconds: 8
-}
-]
-   ✅ Synonyms: برومبتات Midjourney الفنية
-🤖 Using Model: gemini-2.0-flash-lite
-⚠️ Permalink Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash-lite
-Please retry in 8.096097243s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
-  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-, retry_delay {
-  seconds: 8
-}
-]
-🤖 Using Model: gemini-2.5-flash-lite
-   ✍️ Writing: مقدمة...
-   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 75s...
-   ✍️ Writing: مقدمة...
-   🔄 Starting NEW session due to error...
-🤖 Using Model: gemini-2.0-flash-lite
-   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash-lite
-Please retry in 52.792584222s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
-  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-lite"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-}
-, retry_delay {
-  seconds: 52
-}
-]). Switching key & waiting 75s...
-   ✍️ Writing: مقدمة...
-   🔄 Starting NEW session due to error...
-🤖 Using Model: gemini-2.5-flash-lite
-   ✅ Done.
-   ⏳ Sleeping 85s to avoid Quota limit...
-   -> Injecting Summary...
-   ⏳ Sleeping 85s after Summary...
-   ✍️ Writing: معلومات عن برومبتات Midjourney الفنية...
-   ✅ Done.
-   ⏳ Sleeping 85s to avoid Quota limit...
-   ✍️ Writing: أهم النقاط...
-   ✅ Done.
-   ⏳ Sleeping 85s to avoid Quota limit...
-   -> Injecting Motivation...
-   ⏳ Sleeping 85s after Motivation...
-   ✍️ Writing: أسئلة شائعة...
-   ✅ Done.
-   ⏳ Sleeping 85s to avoid Quota limit...
-   ✍️ Writing: خاتمة...
-   ✅ Done.
-   ⏳ Sleeping 85s to avoid Quota limit...
+2026-01-23 20:18:41,000 - INFO - 🚀 Starting article generation process...
+2026-01-23 20:18:41,592 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+Traceback (most recent call last):
+  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
+    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
+    headers, data = self._requester.requestJsonAndCheck(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
+    return self.__check(
+           ^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
+    raise self.createException(status, responseHeaders, data)
+github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+Traceback (most recent call last):
+  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 764, in <module>
+    main()
+  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
+    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
+    headers, data = self._requester.requestJsonAndCheck(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
+    return self.__check(
+           ^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
+    raise self.createException(status, responseHeaders, data)
+github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}

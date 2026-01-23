@@ -154,3 +154,18 @@
 2026-01-23 16:36:31,684 - INFO - file_cache is only supported with oauth2client<4.0.0
 2026-01-23 16:36:31,819 - ERROR - ❌ Error publishing to Blogger: ('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', 'error_description': 'Token has been expired or revoked.'})
 2026-01-23 16:36:34,174 - WARNING - ⚠️ Moved content_plan_برومبتات AI.json to 'failed_plans' directory for inspection.
+2026-01-23 20:18:41,000 - INFO - 🚀 Starting article generation process...
+2026-01-23 20:18:41,592 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+Traceback (most recent call last):
+  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
+    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
+    headers, data = self._requester.requestJsonAndCheck(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
+    return self.__check(
+           ^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
+    raise self.createException(status, responseHeaders, data)
+github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
