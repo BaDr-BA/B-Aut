@@ -169,3 +169,18 @@ Traceback (most recent call last):
   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
     raise self.createException(status, responseHeaders, data)
 github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+2026-01-24 01:10:07,777 - INFO - 🚀 Starting article generation process...
+2026-01-24 01:10:08,540 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+Traceback (most recent call last):
+  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
+    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
+    headers, data = self._requester.requestJsonAndCheck(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
+    return self.__check(
+           ^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
+    raise self.createException(status, responseHeaders, data)
+github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}

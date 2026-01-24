@@ -7,8 +7,8 @@ See README for more details:
 https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 
   import google.generativeai as genai
-2026-01-23 20:18:41,000 - INFO - 🚀 Starting article generation process...
-2026-01-23 20:18:41,592 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+2026-01-24 01:10:07,777 - INFO - 🚀 Starting article generation process...
+2026-01-24 01:10:08,540 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
 Traceback (most recent call last):
   File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
     plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
