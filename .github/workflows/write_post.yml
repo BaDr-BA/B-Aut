@@ -32,7 +32,6 @@ jobs:
           
       - name: Run Writer Script
         id: write_article
-        continue-on-error: true  # مهم! لو فشل ميوقفش الـ workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
