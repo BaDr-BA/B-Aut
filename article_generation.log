@@ -236,3 +236,10 @@ github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "doc
 2026-01-25 05:38:20,968 - INFO - ✅ Published draft: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
 2026-01-25 05:38:20,968 - INFO - 🔗 Permalink and Meta info added at the top of the post content
 2026-01-25 05:38:21,456 - INFO - 🗑️ Removed article from plan.
+2026-01-25 10:15:59,751 - INFO - 🚀 Starting article generation process...
+2026-01-25 10:16:00,346 - INFO - 📂 Selected plan: content_plan_ربح من AI.json
+2026-01-25 10:16:00,710 - INFO - 📝 Generating article: أفضل 10 أدوات AI لزيادة دخلك: اكتشف كيف تكسب أكثر بذكاء
+2026-01-25 11:21:53,491 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-25 11:21:54,310 - INFO - ✅ Published draft: أفضل 10 أدوات AI لزيادة دخلك: اكتشف كيف تكسب أكثر بذكاء
+2026-01-25 11:21:54,310 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-25 11:21:54,863 - INFO - 🗑️ Removed article from plan.
