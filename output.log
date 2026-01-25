@@ -7,33 +7,47 @@ See README for more details:
 https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 
   import google.generativeai as genai
-2026-01-25 01:19:47,613 - INFO - 🚀 Starting article generation process...
-2026-01-25 01:19:48,171 - ERROR - ❌ Critical error in main(): 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
-Traceback (most recent call last):
-  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
-    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
-    headers, data = self._requester.requestJsonAndCheck(
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
-    return self.__check(
-           ^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
-    raise self.createException(status, responseHeaders, data)
-github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
-Traceback (most recent call last):
-  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 764, in <module>
-    main()
-  File "/home/runner/work/B-Aut/B-Aut/write_article.py", line 695, in main
-    plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Repository.py", line 2463, in get_contents
-    headers, data = self._requester.requestJsonAndCheck(
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 623, in requestJsonAndCheck
-    return self.__check(
-           ^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/github/Requester.py", line 853, in __check
-    raise self.createException(status, responseHeaders, data)
-github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/contents#get-repository-content", "status": "404"}
+2026-01-25 05:19:01,607 - INFO - 🚀 Starting article generation process...
+2026-01-25 05:19:02,151 - INFO - 📂 Selected plan: content_plan_شروحات AI.json
+2026-01-25 05:19:02,520 - INFO - 📝 Generating article: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+2026-01-25 05:38:20,311 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-25 05:38:20,968 - INFO - ✅ Published draft: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+2026-01-25 05:38:20,968 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-25 05:38:21,456 - INFO - 🗑️ Removed article from plan.
+🏗️ Generating structure for: دليلك الشامل لتعلم الذكاء الاصطناعي من الصفر: ابدأ رحلتك الآن!
+🤖 Using Model: gemini-2.0-flash-lite
+⚠️ Structure Quota hit! Waiting 75s... (1/3)
+🤖 Using Model: gemini-2.5-flash-lite
+⚠️ Structure Quota hit! Waiting 150s... (2/3)
+🤖 Using Model: gemini-2.0-flash
+⚠️ Structure Quota hit! Waiting 225s... (3/3)
+⚠️ All structure attempts failed. Using backup plan.
+🔍 Generating synonyms for keyword: تعلم الذكاء الاصطناعي من الصفر
+🤖 Using Model: gemini-2.5-flash-lite
+   ⚠️ Could not generate synonyms: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+   ✅ Synonyms: تعلم الذكاء الاصطناعي من الصفر
+🤖 Using Model: gemini-2.5-flash
+🤖 Using Model: gemini-2.0-flash
+   ✍️ Writing: مقدمة...
+   ⚠️ Error (429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ). Switching key & waiting 75s...
+   ✍️ Writing: مقدمة...
+   🔄 Starting NEW session due to error...
+🤖 Using Model: gemini-2.5-flash
+   ✅ Done.
+   ⏳ Sleeping 85s to avoid Quota limit...
+   -> Injecting Summary...
+   ⏳ Sleeping 85s after Summary...
+   ✍️ Writing: معلومات عن تعلم الذكاء الاصطناعي من الصفر...
+   ✅ Done.
+   ⏳ Sleeping 85s to avoid Quota limit...
+   ✍️ Writing: أهم النقاط...
+   ✅ Done.
+   ⏳ Sleeping 85s to avoid Quota limit...
+   -> Injecting Motivation...
+   ⏳ Sleeping 85s after Motivation...
+   ✍️ Writing: أسئلة شائعة...
+   ✅ Done.
+   ⏳ Sleeping 85s to avoid Quota limit...
+   ✍️ Writing: خاتمة...
+   ✅ Done.
+   ⏳ Sleeping 85s to avoid Quota limit...
