@@ -264,3 +264,10 @@ github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "doc
 2026-01-26 11:11:31,494 - INFO - ✅ Published draft: كيف تربح من تصميم الصور بالذكاء الاصطناعي؟ دليلك الشامل لـMidjourney
 2026-01-26 11:11:31,494 - INFO - 🔗 Permalink and Meta info added at the top of the post content
 2026-01-26 11:11:32,184 - INFO - 🗑️ Removed article from plan.
+2026-01-26 20:19:20,622 - INFO - 🚀 Starting article generation process...
+2026-01-26 20:19:21,209 - INFO - 📂 Selected plan: content_plan_برومبتات AI.json
+2026-01-26 20:19:21,781 - INFO - 📝 Generating article: أفضل برومبتات Midjourney الفنية: أطلق العنان لإبداعك البصري بالذكاء الاصطناعي
+2026-01-26 20:40:52,239 - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-01-26 20:40:52,962 - INFO - ✅ Published draft: أفضل برومبتات Midjourney الفنية: أطلق العنان لإبداعك البصري بالذكاء الاصطناعي
+2026-01-26 20:40:52,963 - INFO - 🔗 Permalink and Meta info added at the top of the post content
+2026-01-26 20:40:53,561 - INFO - 🗑️ Removed article from plan.
