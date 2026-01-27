@@ -99,20 +99,22 @@ def clean_json_response(text):
     return text
 
 def create_permalink_gemini(keyword_arabic):
-    """توليد رابط ثابت باستخدام Gemini لضمان عدم توقف المكتبات الخارجية"""
+    """توليد رابط ثابت بالإنجليزية حصراً"""
     try:
-        model = get_gemini_model() # نستخدم نفس الموديل المهيأ
+        model = get_gemini_model()
+        # برومبت صارم للترجمة
         prompt = f"""
-        Act as a URL slug generator.
-        Task: Translate this Arabic text "{keyword_arabic}" to English, convert to lowercase, remove special characters, and replace spaces with hyphens (-).
-        Output: Just the final slug string. No explanation.
-        Example Input: الربح من الانترنت
-        Example Output: profit-from-internet
+        Task: Strictly translate the Arabic phrase "{keyword_arabic}" into English.
+        - Convert to lowercase.
+        - Remove ALL special characters.
+        - Replace spaces with hyphens (-).
+        - Output ONLY the final slug string (e.g., profit-from-internet).
+        - Do NOT write any explanation.
         """
         response = model.generate_content(prompt)
-        permalink = response.text.strip().replace("\n", "").replace(" ", "")
+        permalink = response.text.strip().lower()
         
-        # تنظيف إضافي لضمان عدم وجود رموز غريبة
+        # تنظيف نهائي لأي حروف غير إنجليزية
         permalink = re.sub(r'[^a-z0-9\-]', '', permalink)
         return permalink
     except Exception as e:
@@ -225,22 +227,15 @@ def generate_article_structure(title, keyword):
                 
         except Exception as e:
             if "429" in str(e) or "quota" in str(e).lower():
-                wait_time = 75 * (attempt + 1)
+                wait_time = 20 * (attempt + 1)
                 print(f"⚠️ Structure Quota hit! Waiting {wait_time}s... ({attempt+1}/{max_retries})")
                 time.sleep(wait_time)
             else:
                 print(f"⚠️ Structure Error: {e}")
                 time.sleep(20)
 
-    # الخطة البديلة (فقط إذا فشلت كل المحاولات)
-    print("⚠️ All structure attempts failed. Using backup plan.")
-    return [
-        {"level": "intro", "type": "introduction", "title": "مقدمة"},
-        {"level": "h2", "type": "text_paragraph", "title": f"معلومات عن {keyword}"},
-        {"level": "h2", "type": "list_bullet", "title": "أهم النقاط"},
-        {"level": "h2", "type": "faq", "title": "أسئلة شائعة"},
-        {"level": "h2", "type": "conclusion", "title": "خاتمة"}
-    ]
+    # إذا فشلت كل المحاولات، نرفع خطأ ليتم إيقاف العملية والحفاظ على الخطة
+    raise Exception("❌ Failed to generate article structure after retries. Aborting to save plan.")
 
 def get_synonyms(keyword):
     """
@@ -649,9 +644,9 @@ def write_full_article(article_data):
                 print(f"   ✅ Done.")
                 
                 # === جوهر الحل: الانتظار الاجباري ===
-                # ننتظر 75 ثانية لضمان مرور "دقيقة جوجل" وتصفير العداد
-                print("   ⏳ Sleeping 85s to avoid Quota limit...")
-                time.sleep(85) 
+                # ننتظر 120 ثانية لضمان مرور "أكتر من دقيقة جوجل" وتصفير العداد
+                print("   ⏳ Sleeping 120s to avoid Quota limit...")
+                time.sleep(120) 
                 
                 # (الكود الخاص بالـ Summary/Motivation نفس المنطق)
                 if sec_type == 'introduction':
