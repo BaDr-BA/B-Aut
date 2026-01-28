@@ -29,6 +29,7 @@ TEST_MODE = False # اجعله False عندما تعتمد السكريبت نه
 
 # --- الإعدادات والمفاتيح ---
 GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 7) if os.environ.get(f"GEMINI_API_KEY_{i}")]
+CURRENT_KEY = None # نخزن فيه المفتاح المختار لهذه الجلسة
 CLIENT_ID = os.environ.get("BLOGGER_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("BLOGGER_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("BLOGGER_REFRESH_TOKEN")
@@ -175,12 +176,21 @@ def format_headings_style(html_content):
     return re.sub(pattern, replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
 
 def get_gemini_model():
-    """اختيار مفتاح عشوائي وموديل قوي"""
+    """اختيار المفتاح المحدد أو عشوائي في حالة عدم التحديد"""
+    global CURRENT_KEY
+    
     if not GEMINI_API_KEYS:
         raise ValueError("No Gemini API keys found!")
     
-    key = random.choice(GEMINI_API_KEYS)
-    genai.configure(api_key=key)
+    # إذا لم يتم تحديد مفتاح بعد، اختر واحداً عشوائياً
+    if CURRENT_KEY is None:
+        CURRENT_KEY = random.choice(GEMINI_API_KEYS)
+    
+    # طباعة جزء من المفتاح للتأكد (أول 5 حروف)
+    key_hint = CURRENT_KEY[:5] + "..."
+    # print(f"🤖 Using API Key starting with: {key_hint}") # (اختياري للتجربة)
+    
+    genai.configure(api_key=CURRENT_KEY)
     
     models_list = [
         'gemini-2.5-flash',
@@ -189,7 +199,6 @@ def get_gemini_model():
         'gemini-2.0-flash-lite',
     ]
     selected_model = random.choice(models_list)
-    print(f"🤖 Using Model: {selected_model}")
     
     return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
 
@@ -693,8 +702,18 @@ def write_full_article(article_data):
 
             except Exception as e:
                 retries += 1
-                wait_time = 75 * retries # انتظار متصاعد
-                print(f"   ⚠️ Error ({e}). Switching key & waiting {wait_time}s...")
+                
+                # --- أضف هذا السطر لتغيير المفتاح الحالي عند الخطأ ---
+                global CURRENT_KEY
+                # نختار مفتاح عشوائي جديد غير الحالي
+                other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+                if other_keys:
+                    CURRENT_KEY = random.choice(other_keys)
+                    print(f"   🔄 Switched to a new API Key due to error.")
+                # ---------------------------------------------------
+
+                wait_time = 75 * retries 
+                print(f"   ⚠️ Error ({e}). Waiting {wait_time}s...")
                 time.sleep(wait_time) 
                 
                 if retries == max_retries:
@@ -746,6 +765,45 @@ def main():
         auth = Auth.Token(GITHUB_TOKEN)
         g = Github(auth=auth)
         repo = g.get_repo(REPO_NAME)
+
+        # --- بداية كود تدوير المفاتيح الذكي ---
+        global CURRENT_KEY
+        try:
+            # 1. محاولة قراءة رقم آخر مفتاح تم استخدامه
+            last_key_index = -1
+            try:
+                key_file = repo.get_contents("last_key_index.txt")
+                last_key_index = int(key_file.decoded_content.decode("utf-8").strip())
+                logger.info(f"🔄 Last used key index was: {last_key_index}")
+            except:
+                logger.info("ℹ️ No usage history found. Starting fresh.")
+
+            # 2. تحديد المؤشرات المتاحة (0, 1, 2...)
+            all_indices = list(range(len(GEMINI_API_KEYS)))
+            
+            # 3. استبعاد المفتاح الأخير (إلا لو كان هو الوحيد)
+            valid_indices = [i for i in all_indices if i != last_key_index]
+            if not valid_indices: valid_indices = all_indices # لو مفيش غير مفتاح واحد استخدمه وخلاص
+
+            # 4. اختيار مفتاح جديد عشوائي من القائمة المصفاة
+            new_index = random.choice(valid_indices)
+            CURRENT_KEY = GEMINI_API_KEYS[new_index]
+            logger.info(f"✅ Selected new key index: {new_index}")
+
+            # 5. تحديث الملف في المستودع بالرقم الجديد
+            if not TEST_MODE:
+                try:
+                    if last_key_index == -1:
+                        repo.create_file("last_key_index.txt", "Init key history", str(new_index))
+                    else:
+                        repo.update_file(key_file.path, "Update key rotation", str(new_index), key_file.sha)
+                except Exception as update_err:
+                    logger.warning(f"⚠️ Could not update key history: {update_err}")
+
+        except Exception as e:
+            logger.error(f"⚠️ Key rotation logic failed: {e}")
+            CURRENT_KEY = random.choice(GEMINI_API_KEYS) # خطة بديلة
+        # --- نهاية كود تدوير المفاتيح ---
         
         plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
         if not plan_files:
