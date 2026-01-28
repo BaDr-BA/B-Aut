@@ -253,6 +253,14 @@ def generate_article_structure(title, keyword):
                 return unique_structure
                 
         except Exception as e:
+            # --- التعديل: تغيير المفتاح عند فشل الهيكل ---
+            global CURRENT_KEY
+            other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+            if other_keys:
+                CURRENT_KEY = random.choice(other_keys)
+                print(f"   🔄 Switched Key for Structure retry.")
+            # ---------------------------------------------
+
             if "429" in str(e) or "quota" in str(e).lower():
                 wait_time = 20 * (attempt + 1)
                 print(f"⚠️ Structure Quota hit! Waiting {wait_time}s... ({attempt+1}/{max_retries})")
