@@ -60,7 +60,17 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          git add -A
-          git commit -m "Auto: Article published $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
+          
+          # 1. سحب التحديثات أولاً لتجنب التضارب
           git pull origin main --rebase
-          git push
+          
+          # 2. إضافة الملفات المهمة فقط (تجاهل ملفات اللوج)
+          git add plans/ published_titles.txt last_key_index.txt
+          
+          # 3. التأكد من أن هناك تغييرات فعلاً قبل الكوميت
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto: Article published $(date +'%Y-%m-%d %H:%M')"
+            git push origin main
+          fi
