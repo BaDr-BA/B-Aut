@@ -8,7 +8,6 @@ import google.generativeai as genai
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
-from googletrans import Translator
 import typing_extensions as typing
 from github import Github, Auth
 import logging
