@@ -93,6 +93,13 @@ def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     return build('blogger', 'v3', credentials=creds)
 
+def format_headings_style(html_content):
+    """تحويل النقطتين : إلى مسافة وعمود ¦ في العناوين H1-H4 فقط"""
+    def replace_colon(match):
+        return f"{match.group(1)}{match.group(2).replace(':', ' ¦')}{match.group(3)}"
+    
+    return re.sub(r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)', replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
+
 def clean_json_response(text):
     """تنظيف رد Gemini لاستخراج JSON صالح"""
     text = text.replace("```json", "").replace("```", "").strip()
@@ -150,6 +157,22 @@ def clean_text_symbols(text):
             cleaned_parts.append(cleaned_part)
     
     return ''.join(cleaned_parts)
+
+def format_headings_style(html_content):
+    """
+    تحويل النقطتين : إلى مسافة وعمود ¦ في العناوين H1-H4 فقط
+    """
+    def replace_colon(match):
+        tag_open = match.group(1)
+        content = match.group(2)
+        tag_close = match.group(3)
+        # استبدال : بـ ¦ داخل النص
+        new_content = content.replace(':', ' ¦')
+        return f"{tag_open}{new_content}{tag_close}"
+
+    # Regex يستهدف h1, h2, h3, h4 ومحتواهم
+    pattern = r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)'
+    return re.sub(pattern, replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
 
 def get_gemini_model():
     """اختيار مفتاح عشوائي وموديل قوي"""
@@ -291,62 +314,44 @@ def get_synonyms(keyword):
         # في حالة الفشل، نرجع الكلمة الأساسية فقط
         return [keyword]
 
-def make_keywords_bold(text, keyword, synonyms_list=None):
-    """
-    تغميق الكلمات المفتاحية بذكاء:
-    1. لا تقم بعمل بولد إذا كانت الكلمة بالفعل داخل وسم <b> أو <strong>
-    2. لا تكرر البولد
-    """
-    if synonyms_list is None:
-        synonyms_list = get_synonyms(keyword)
+def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
+    """تغميق الكلمات المفتاحية مرة واحدة فقط في المقال بالكامل"""
+    if synonyms_list is None: synonyms_list = []
+    if global_tracker is None: global_tracker = set() # للأمان لو لم يمرر
     
-    # دمج الكلمة الأساسية مع المرادفات وترتيبهم من الأطول للأقصر
+    # تجهيز القائمة: الكلمة الأساسية + المرادفات
     all_terms = [keyword] + synonyms_list
-    all_terms = sorted(list(set(all_terms)), key=len, reverse=True)
+    # ترتيب من الأطول للأقصر
+    all_terms = sorted(list(set([t.strip() for t in all_terms if t.strip()])), key=len, reverse=True)
     
-    # تفكيك النص بناءً على التاجات HTML لمعرفة "أين نحن"
-    # هذا يفصل التاجات عن النصوص
     tokens = re.split(r'(<[^>]+>)', text)
-    
     processed_tokens = []
-    is_inside_bold = False # مؤشر: هل نحن الآن داخل منطقة بولد؟
+    is_inside_bold = False 
 
     for token in tokens:
-        # إذا كان التوكن فارغاً نخطاه
-        if not token:
-            continue
-            
-        # فحص هل هذا التوكن هو تاج HTML
+        if not token: continue  
         if token.startswith('<'):
             processed_tokens.append(token)
-            
-            # تحديث الحالة: هل دخلنا أو خرجنا من منطقة بولد؟
-            tag_lower = token.lower()
-            if '<b>' in tag_lower or '<strong>' in tag_lower:
-                is_inside_bold = True # نحن الآن داخل بولد، ممنوع التعديل القادم
-            elif '</b>' in tag_lower or '</strong>' in tag_lower:
-                is_inside_bold = False # خرجنا، مسموح التعديل
+            if '<b>' in token.lower() or '<strong>' in token.lower(): is_inside_bold = True 
+            elif '</b>' in token.lower() or '</strong>' in token.lower(): is_inside_bold = False 
         else:
-            # نحن الآن في نص عادي
             if is_inside_bold:
-                # إذا كنا داخل منطقة بولد، نترك النص كما هو تماماً (حسب طلبك رقم 1)
                 processed_tokens.append(token)
             else:
-                # مسموح التعديل: نبحث عن الكلمات المفتاحية
                 temp_text = token
                 for term in all_terms:
-                    if not term.strip() or len(term.strip()) < 2: continue
+                    # الشرط الجديد: لو الكلمة دي اتعملت بولد قبل كده في المقال كله، تخطاها
+                    if term in global_tracker: continue
+                    if len(term) < 2: continue
                     
-                    # نستخدم Regex يستبدل الكلمة فقط إذا لم تكن ملتصقة بكلمات أخرى
-                    # (?<!...) و (?!...) للتأكد من حدود الكلمة العربية والانجليزية
                     pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(term) + r'(?![\w\u0600-\u06FF])'
-                    
-                    # استبدال بـ <b>term</b>
-                    temp_text = re.sub(pattern, f'<b>{term}</b>', temp_text, flags=re.IGNORECASE)
+                    # بحث واستبدال مرة واحدة
+                    if re.search(pattern, temp_text, flags=re.IGNORECASE):
+                        temp_text = re.sub(pattern, f'<b>{term}</b>', temp_text, count=1, flags=re.IGNORECASE)
+                        global_tracker.add(term) # سجل إننا عملناها خلاص
                 
                 processed_tokens.append(temp_text)
 
-    # إعادة تجميع النص
     return ''.join(processed_tokens)
 
 def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
@@ -397,9 +402,9 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         "table": f"""
         اكتب المطلوب مباشرة بدون أي مقدمات.
         
-        انشئ جدول HTML (ياخذ الوان وخط القالب بلوجر اللي مركبه تلقائيًا) عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+        انشئ جدول HTML (ياخذ الوان #bb3b17 و#faad2a أو ما بينهم + وخط القالب بلوجر اللي مركبه تلقائيًا) عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
         - تبدأ بمقدمة قصيرة (200 حرف)
-        - ثم الجدول (متجاوب width:100%)
+        - ثم الجدول (يكون متجاوب مع الهواتف والكمبيوتر)
         - اختم بملاحظة قصيرة (200 حرف)
         - بدون CSS معقد
         - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
@@ -493,13 +498,13 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         "summary_box": f"""
         اكتب المطلوب مباشرة بدون أي مقدمات.
         
-        اكتب ملخص سريع مباشر موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
-        - عنوان جذاب لـ "خلاصة سريعة"
+        اكتب ملخص سريع مباشر للمقال التالي (سأزودك به) موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+        - عنوان جذاب وشيق وفضولي لـ "خلاصة سريعة" مع اضافة الكلمة المفتاحية هذه "{keyword}"
         - ابدأ بجملة ترحيبية تشرح أن هذا هو ملخص ما سيجده الباحث أو القارئ
         - ملخص للمقال بالكامل
         - نقاط مركزة جداً
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
-        - داخل div بخلفية مناسبة
+        - داخل div بخلفية #bb3b17 أو #faad2a أو ما بينهم
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:3]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -534,13 +539,32 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     return base_prompt
 
 def write_full_article(article_data):
-    """المرحلة 2 & 3: الاستراتيجية البطيئة والمضمونة (السلحفاة)"""
+    """النسخة المطورة: ترتيب الهيكل، ملخص في النهاية، ذاكرة بولد، معالجة أخطاء أفضل"""
     title = article_data['title']
     keyword = article_data['keyword']
     meta_description = article_data.get('meta_description', '')
     
     print(f"🏗️ Generating structure for: {title}")
-    structure = generate_article_structure(title, keyword)
+    original_structure = generate_article_structure(title, keyword)
+
+    # --- التعديل: إعادة ترتيب الهيكل (محتوى -> أسئلة -> خاتمة) ---
+    body_sec = []
+    faq_sec = []
+    conc_sec = []
+    
+    for item in original_structure:
+        t = item['type'].lower()
+        ti = item['title'].lower()
+        if 'faq' in t or 'أسئلة' in ti: faq_sec.append(item)
+        elif 'conclusion' in t or 'خاتمة' in ti:
+            # إزالة عنوان الخاتمة لتظهر كفقرة مباشرة كما طلبت
+            item['type'] = 'conclusion'
+            item['title'] = 'خاتمة' 
+            conc_sec.append(item)
+        else: body_sec.append(item)
+        
+    structure = body_sec + faq_sec + conc_sec
+    # -----------------------------------------------------------
 
     print(f"🔍 Generating synonyms for keyword: {keyword}")
     synonyms = get_synonyms(keyword)
@@ -549,15 +573,13 @@ def write_full_article(article_data):
     # 1. توليد الرابط الإنجليزي (Slug)
     raw_slug = create_permalink_gemini(keyword)
     
-    # تنظيف الرابط حسب شروطك: حروف صغيرة، استبدال المسافات بشرط، عدم تكرار الشرط
+    # تنظيف الرابط
     final_slug = raw_slug.lower().strip()
-    final_slug = re.sub(r'\s+', '-', final_slug) # المسافات لشرطة
-    final_slug = re.sub(r'-+', '-', final_slug)  # الشرطات المتكررة لشرطة واحدة
-    final_slug = final_slug.strip('-')           # حذف الشرطات من البداية والنهاية
+    final_slug = re.sub(r'\s+', '-', final_slug) 
+    final_slug = re.sub(r'-+', '-', final_slug)  
+    final_slug = final_slug.strip('-')           
     
-    # 2. بناء بداية المقال (السطرين المطلوبين)
-    # السطر الأول: الرابط
-    # السطر الثاني: الوصف الميتا
+    # 2. بناء بداية المقال
     full_html = f"""
 {final_slug}
 <br>
@@ -566,6 +588,9 @@ def write_full_article(article_data):
 <br>
 """
     
+    # متغير لتتبع البولد عالمياً (عشان ميكررش البولد في المقال كله)
+    global_bold_tracker = set()
+
     # 1. إعداد الجلسة الأولى
     model = get_gemini_model()
     chat = model.start_chat(history=[])
@@ -579,7 +604,7 @@ def write_full_article(article_data):
     3. استخدم "{keyword}" ومرادفاتها طبيعياً
     4. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
     5. لا تكرر العناوين
-    6. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص
+    6. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص نهائياً
     
     مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
     """
@@ -599,9 +624,14 @@ def write_full_article(article_data):
         title_text = section.get('title', '')
         sec_type = section.get('type', 'text_paragraph')
         
-        # إضافة العناوين HTML
-        if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
-        elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
+        # إضافة العناوين HTML (إلا لو كانت خاتمة أو مقدمة بدون عنوان صريح)
+        write_title = True
+        if sec_type == 'conclusion': write_title = False
+        if sec_type == 'introduction' and ('مقدمة' in title_text or not title_text): write_title = False
+        
+        if write_title:
+            if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
+            elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
         
         # تجهيز البرومبت
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
@@ -616,66 +646,96 @@ def write_full_article(article_data):
             try:
                 print(f"   ✍️ Writing: {title_text}...")
                 
-                # إذا كانت محاولة معادة، نفتح جلسة جديدة (فكرتك)
+                # إعادة الجلسة عند الخطأ
                 if retries > 0:
                     print("   🔄 Starting NEW session due to error...")
                     model = get_gemini_model()
-                    chat = model.start_chat(history=[]) # جلسة نظيفة
-                    try:
-                        chat.send_message(setup_prompt) # إعادة تعليمات الخبير
-                    except:
-                        pass
+                    chat = model.start_chat(history=[]) 
+                    try: chat.send_message(setup_prompt) 
+                    except: pass
 
                 # الإرسال
                 response = chat.send_message(prompt)
                 content = response.text.replace("```html", "").replace("```", "").strip()
                 content = clean_text_symbols(content)
-                content = make_keywords_bold(content, keyword, synonyms)
+                
+                # استخدام دالة البولد الجديدة مع التراكر
+                content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
                 
                 if len(content) < 50: raise Exception("Content too short")
                 
                 full_html += content
                 
-                # التعديل: إضافة الفاصل فقط إذا لم نكن في آخر عنصر في الهيكل (لتجنب المسافة بعد الخاتمة)
+                # الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
                 if i < len(structure) - 1:
                     full_html += "\n<br>\n"
                 
                 success = True
                 print(f"   ✅ Done.")
                 
-                # === جوهر الحل: الانتظار الاجباري ===
-                # ننتظر 120 ثانية لضمان مرور "أكتر من دقيقة جوجل" وتصفير العداد
                 print("   ⏳ Sleeping 120s to avoid Quota limit...")
                 time.sleep(120) 
                 
-                # (الكود الخاص بالـ Summary/Motivation نفس المنطق)
-                if sec_type == 'introduction':
-                    print("   -> Injecting Summary...")
-                    try:
-                        sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-                        res = chat.send_message(sum_prompt)
-                        full_html += clean_text_symbols(res.text.replace("```html","").replace("```","")) + "\n<br>\n"
-                        print("   ⏳ Sleeping 85s after Summary...")
-                        time.sleep(85)
-                    except: pass
+                # تم نقل كود الملخص من هنا --- (أصبح خارج اللوب)
 
-                if i == mid_index:
+                # كود التحفيز (Motivation) يبقى هنا
+                if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
                     print("   -> Injecting Motivation...")
                     try:
                         mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
                         res = chat.send_message(mot_prompt)
-                        full_html += f"<div style='text-align:center;'>{clean_text_symbols(res.text.replace('```html','').replace('```',''))}</div>\n<br>\n"
+                        mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
+                        # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
+                        full_html += f"<div style='text-align:center;'>{mot_content}</div>\n<br>\n"
                         print("   ⏳ Sleeping 85s after Motivation...")
                         time.sleep(85)
                     except: pass
 
             except Exception as e:
                 retries += 1
-                print(f"   ⚠️ Error ({e}). Switching key & waiting 75s...")
-                time.sleep(75) # انتظار عند الخطأ
+                wait_time = 75 * retries # انتظار متصاعد
+                print(f"   ⚠️ Error ({e}). Switching key & waiting {wait_time}s...")
+                time.sleep(wait_time) 
                 
                 if retries == max_retries:
-                    full_html += f"<p><i>⚠️ [تعذر الكتابة بسبب الضغط]</i></p>\n"
+                    full_html += f"<p>...</p>\n" # فشل صامت أفضل من رسالة خطأ
+
+    # --- التعديل: إنشاء وحقن الملخص (Summary) الآن ---
+    print("   📝 Generating Full Summary...")
+    try:
+        # نعطيه سياق من المقال (أول 5000 حرف) ليفهم عن ماذا يلخص
+        context_preview = full_html[:5000]
+        sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
+        sum_prompt += f"\n\nاستناداً للنص التالي:\n{context_preview}..."
+        
+        # جلسة جديدة للملخص لضمان عدم التأثر بالسياق القديم
+        summary_chat = get_gemini_model().start_chat(history=[])
+        res = summary_chat.send_message(sum_prompt)
+        
+        sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
+        # تطبيق البولد على الملخص أيضاً
+        sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
+        
+        # حقن الملخص: نبحث عن أول عنوان H2 (بعد المقدمة) ونضعه قبله
+        if '<h2>' in full_html:
+            # نستبدل أول H2 بـ (ملخص + H2)
+            full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
+        else:
+            # لو مفيش عناوين، حطه بعد المقدمة يدوياً (بعد ثالث br)
+            parts = full_html.split('<br>', 4)
+            if len(parts) >= 4:
+                parts.insert(3, f'\n{sum_content}\n')
+                full_html = '<br>'.join(parts)
+            else:
+                full_html += sum_content # خطة بديلة
+                
+        print("   ✅ Summary injected.")
+        time.sleep(30)
+    except Exception as e:
+        print(f"   ⚠️ Summary failed: {e}")
+
+    # --- التعديل: تنسيق العناوين : إلى | ---
+    full_html = format_headings_style(full_html)
 
     return full_html
 
@@ -738,22 +798,16 @@ def main():
                 logger.info("⚠️ TEST MODE ENABLED: Article was NOT removed from the plan & NOT added to published list.")
 
         except Exception as e:
+            # عند فشل النشر، لا تنقل الملف ولا تفعل شيء
             logger.error(f"❌ Error publishing to Blogger: {e}")
-            
-            # نقل الملف الفاشل
-            if not TEST_MODE:
-                try:
-                    failed_content = selected_file.decoded_content.decode("utf-8")
-                    failed_path = f"failed_plans/{selected_file.name}"
-                    repo.create_file(failed_path, f"Move failed plan: {selected_file.name}", failed_content)
-                    repo.delete_file(selected_file.path, f"Remove failed plan: {selected_file.name}", selected_file.sha)
-                    logger.warning(f"⚠️ Moved {selected_file.name} to 'failed_plans' directory for inspection.")
-                except Exception as move_error:
-                    logger.error(f"⚠️ Could not move failed file: {move_error}")
+            logger.info("⚠️ Keeping the plan file in place to retry later.")
 
     except Exception as e:
+        # الخطأ العام للسكريبت
         logger.error(f"❌ Critical error in main(): {e}", exc_info=True)
-        raise  # مهم! عشان GitHub Actions يعرف إن فيه خطأ
+        # لا نحذف الملف ولا نغير مكانه
+        # raise # يمكنك إزالة raise لو مش عايز الـ Action يبان أحمر، بس الأفضل تسيبه عشان تعرف إن فيه مشكلة
+        raise
 
 if __name__ == "__main__":
     main()
