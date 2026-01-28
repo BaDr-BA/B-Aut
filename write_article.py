@@ -106,53 +106,49 @@ def clean_json_response(text):
     return text
 
 def create_permalink_gemini(keyword_arabic):
-    """توليد رابط ثابت بالإنجليزية حصراً"""
-    try:
-        model = get_gemini_model()
-        # برومبت صارم للترجمة
-        prompt = f"""
-        Task: Strictly translate the Arabic phrase "{keyword_arabic}" into English.
-        - Convert to lowercase.
-        - Remove ALL special characters.
-        - Replace spaces with hyphens (-).
-        - Output ONLY the final slug string (e.g., profit-from-internet).
-        - Do NOT write any explanation.
-        """
-        response = model.generate_content(prompt)
-        permalink = response.text.strip().lower()
-        
-        # تنظيف نهائي لأي حروف غير إنجليزية
-        permalink = re.sub(r'[^a-z0-9\-]', '', permalink)
-        return permalink
-    except Exception as e:
-        print(f"⚠️ Permalink Error: {e}")
-        # خطة بديلة في حال فشل Gemini نستخدم مكتبة re فقط لعمل slug عربي
-        return re.sub(r'[^0-9\u0600-\u06FF]+', '-', keyword_arabic).strip('-')
+    """توليد رابط ثابت بالإنجليزية مع محاولات متعددة"""
+    for attempt in range(3):
+        try:
+            model = get_gemini_model()
+            prompt = f"""
+            Task: Strictly translate the Arabic phrase "{keyword_arabic}" into English.
+            - Convert to lowercase.
+            - Remove ALL special characters.
+            - Replace spaces with hyphens (-).
+            - Output ONLY the final slug string (e.g., profit-from-internet).
+			- Do NOT write any explanation.
+            """
+            response = model.generate_content(prompt)
+            permalink = response.text.strip().lower()
+            permalink = re.sub(r'[^a-z0-9\-]', '', permalink)
+            if len(permalink) > 2: return permalink
+        except Exception as e:
+            if "429" in str(e): time.sleep(15)
+            else: print(f"⚠️ Permalink Error: {e}")
+            
+    # إذا فشل بعد 3 محاولات، نستخدم العربي
+    return re.sub(r'[^0-9\u0600-\u06FF]+', '-', keyword_arabic).strip('-')
 
 
 def clean_text_symbols(text):
     """
-    إزالة علامات الاقتباس والنجوم المزدوجة من النص المولد فقط
-    مع الحفاظ على علامات الاقتباس في HTML attributes
+    إزالة علامات الاقتباس والنجوم المزدوجة وكود keyword_strong المزعج
     """
-    # نستخدج regex ذكي لإزالة " و ** فقط من داخل النص وليس من HTML tags
+    # 1. تنظيف كود القالب المزعج (keyword_strong) واستبداله بـ bold عادي
+    text = re.sub(r'<strong[^>]*id=["\']keyword_strong["\'][^>]*>', '<b>', text)
     
-    # 1. إزالة ** المزدوجة (تنسيق Bold markdown الخاطئ)
+    # 2. إزالة ** المزدوجة
     text = text.replace('**', '')
     
-    # 2. إزالة " من النص لكن ليس من HTML attributes
-    # نحفظ HTML tags أولاً
+    # 3. إزالة " من النص لكن ليس من HTML attributes
     html_pattern = r'(<[^>]+>)'
     parts = re.split(html_pattern, text)
     
     cleaned_parts = []
     for i, part in enumerate(parts):
         if part.startswith('<') and part.endswith('>'):
-            # هذا HTML tag - نحافظ عليه كما هو
             cleaned_parts.append(part)
         else:
-            # هذا نص عادي - نزيل علامات الاقتباس منه
-            # نحافظ على علامات الاقتباس التي هي جزء من كلمات عربية
             cleaned_part = part.replace('"', '').replace('"', '').replace('"', '')
             cleaned_parts.append(cleaned_part)
     
@@ -363,8 +359,18 @@ def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
     return ''.join(processed_tokens)
 
 def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
-    """اختيار البرومبت المناسب بناءً على نوع القسم"""
+    """اختيار البرومبت المناسب مع مرادفات عشوائية"""
     
+    # اختيار 3 مرادفات عشوائية لضمان التنوع في كل فقرة
+    current_synonyms = []
+    if synonyms_list:
+        # نختار عدد عشوائي بحد أقصى 3، أو كل القائمة لو أقل من 3
+        sample_size = min(len(synonyms_list), 3)
+        current_synonyms = random.sample(synonyms_list, sample_size)
+    
+    # تحويل القائمة لنص
+    syns_str = ', '.join(current_synonyms) if current_synonyms else keyword
+
     prompts = {
         "introduction": f"""
         اكتب المطلوب مباشرة بدون أي مقدمات.
@@ -375,7 +381,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - الفقرة الأولى: ثلاث أسطر
         - الفقرة الثانية: ثلاث أسطر
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة "المقدمة:" أو أي عنوان.
@@ -389,7 +395,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ثم النقاط التنقيطية
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -402,7 +408,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - القائمة المرقمة
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -415,7 +421,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ثم الجدول (يكون متجاوب مع الهواتف والكمبيوتر)
         - اختم بملاحظة قصيرة (200 حرف)
         - بدون CSS معقد
-        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {syns_str}
         - ⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         ابدأ كتابة الجدول فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
@@ -431,7 +437,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - كل إجابة لا تزيد عن سطرين
         - استخدم رموز ◀️ أو ⬌ بين السؤال والجواب
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -445,7 +451,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - في حدود من 2 إلي 4 أسطر
         - تبرز قيمة مضافة لا يعرفها الجميع
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -459,7 +465,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - العيوب (أوماذا تتجنب) (نقاط)
         - اختم بملاحظة قصيرة (200 حرف) تلخص وجهة نظرك كخبير
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -472,7 +478,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - النقاط بالإيموجي
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -485,7 +491,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - في حدود من 2 إلى 4 أسطر
         - تشجع أيضاً على التعليق والمشاركة بإسلوب لا واعي
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون "الخاتمة:" أو عناوين.
         """,
@@ -498,7 +504,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - كل فقرة 3 أسطر بحد أقصى
         - مسافة بسيطة بين الفقرات
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -507,14 +513,14 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         اكتب المطلوب مباشرة بدون أي مقدمات.
         
         اكتب ملخص سريع مباشر للمقال التالي (سأزودك به) موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
-        - عنوان جذاب وشيق وفضولي لـ "خلاصة سريعة" مع اضافة الكلمة المفتاحية هذه "{keyword}"
+        - عنوان جذاب وشيق وفضولي لـ "خلاصة سريعة" مع اضافة الكلمة المفتاحية هذه "{keyword}" وضعه داخل وسم <h2> حصراً
         - ابدأ بجملة ترحيبية تشرح أن هذا هو ملخص ما سيجده الباحث أو القارئ
         - ملخص للمقال بالكامل
         - نقاط مركزة جداً
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
         - داخل div بخلفية #bb3b17 أو #faad2a أو ما بينهم
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -526,7 +532,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - أسلوب بشري جذاب بعيداً عن الصيغ البيعية المكررة
         - تشجع على إكمال القراءة
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ فوراً في الكتابة بدون أي مقدمات.
         """
@@ -716,46 +722,62 @@ def write_full_article(article_data):
                 time.sleep(wait_time) 
                 
                 if retries == max_retries:
-                    full_html += f"<p>...</p>\n" # فشل صامت أفضل من رسالة خطأ
+                    # القاموس للأنواع المعروفة حالياً
+                    known_types = {
+                        "introduction": "المقدمة", "list_bullet": "قائمة نقطية", 
+                        "list_numbered": "قائمة مرقمة", "table": "الجدول", 
+                        "faq": "الأسئلة الشائعة", "conclusion": "الخاتمة",
+                        "summary_box": "الملخص", "motivation_box": "التحفيز"
+                    }
+                    # الكود الذكي: لو النوع معروف هات العربي، لو جديد هات اسمه زي ما هو
+                    type_name = known_types.get(sec_type, sec_type)
+                    
+                    full_html += f"<p style='color:red; text-align:center;'><i>⚠️ تعذر توليد ({type_name})</i></p>\n"
 
-    # --- التعديل: إنشاء وحقن الملخص (Summary) الآن ---
-    print("   📝 Generating Full Summary...")
-    try:
-        # نعطيه سياق من المقال (أول 5000 حرف) ليفهم عن ماذا يلخص
-        context_preview = full_html[:5000]
-        sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-        sum_prompt += f"\n\nاستناداً للنص التالي:\n{context_preview}..."
-        
-        # جلسة جديدة للملخص لضمان عدم التأثر بالسياق القديم
-        summary_chat = get_gemini_model().start_chat(history=[])
-        res = summary_chat.send_message(sum_prompt)
-        
-        sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
-        # تطبيق البولد على الملخص أيضاً
-        sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
-        
-        # حقن الملخص: نبحث عن أول عنوان H2 (بعد المقدمة) ونضعه قبله
-        if '<h2>' in full_html:
-            # نستبدل أول H2 بـ (ملخص + H2)
-            full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
-        else:
-            # لو مفيش عناوين، حطه بعد المقدمة يدوياً (بعد ثالث br)
-            parts = full_html.split('<br>', 4)
-            if len(parts) >= 4:
-                parts.insert(3, f'\n{sum_content}\n')
-                full_html = '<br>'.join(parts)
+    # --- محاولة الملخص (3 مرات مع تغيير المفتاح) ---
+    print("   📝 Generating Summary...")
+    summary_attempts = 0
+    while summary_attempts < 3:
+        try:
+            # تجهيز البرومبت مع سياق من المقال (أول 4000 حرف)
+            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
+            sum_prompt += f"\n\nلخص النص التالي:\n{full_html[:4000]}..."
+            
+            summary_model = get_gemini_model() # طلب موديل (قد يكون جديد)
+            sum_res = summary_model.generate_content(sum_prompt)
+            
+            sum_content = clean_text_symbols(clean_json_response(sum_res.text))
+            sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
+            
+            # حقن الملخص في المكان المناسب
+            if '<h2>' in full_html:
+                full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
             else:
-                full_html += sum_content # خطة بديلة
-                
-        print("   ✅ Summary injected.")
-        time.sleep(30)
-    except Exception as e:
-        print(f"   ⚠️ Summary failed: {e}")
+                # لو مفيش عناوين، نحشره بعد المقدمة يدوياً
+                parts = full_html.split('<br>', 4)
+                if len(parts) >= 4:
+                    parts.insert(3, f'\n{sum_content}\n')
+                    full_html = '<br>'.join(parts)
+                else:
+                    full_html += sum_content
+            
+            print("   ✅ Summary injected.")
+            break # نجحنا، نخرج من اللوب
+            
+        except Exception as e:
+            summary_attempts += 1
+            print(f"   ⚠️ Summary Retry {summary_attempts}: {e}")
+            
+            # تغيير المفتاح للمحاولة التالية
+            global CURRENT_KEY
+            other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+            if other_keys: 
+                CURRENT_KEY = random.choice(other_keys)
+                print("   🔄 Switched Key for Summary retry.")
+            
+            time.sleep(30)
 
-    # --- التعديل: تنسيق العناوين : إلى | ---
-    full_html = format_headings_style(full_html)
-
-    return full_html
+    return format_headings_style(full_html)
 
 def main():
     try:
