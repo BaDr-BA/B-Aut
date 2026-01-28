@@ -61,13 +61,19 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          # 1. سحب التحديثات أولاً لتجنب التضارب
+          # 1. نخبي التغييرات الحالية مؤقتاً
+          git stash
+          
+          # 2. نسحب الجديد من المستودع
           git pull origin main --rebase
           
-          # 2. إضافة الملفات المهمة فقط (تجاهل ملفات اللوج)
+          # 3. نرجع التغييرات بتاعتنا تاني
+          git stash pop || echo "No stash to pop"
+          
+          # 4. نضيف الملفات المهمة فقط (تجاهل اللوج)
           git add plans/ published_titles.txt last_key_index.txt
           
-          # 3. التأكد من أن هناك تغييرات فعلاً قبل الكوميت
+          # 5. نرفع التغييرات
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
