@@ -389,7 +389,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ثم النقاط التنقيطية
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -402,7 +402,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - القائمة المرقمة
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -415,7 +415,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ثم الجدول (يكون متجاوب مع الهواتف والكمبيوتر)
         - اختم بملاحظة قصيرة (200 حرف)
         - بدون CSS معقد
-        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
         - ⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         ابدأ كتابة الجدول فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
@@ -431,7 +431,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - كل إجابة لا تزيد عن سطرين
         - استخدم رموز ◀️ أو ⬌ بين السؤال والجواب
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -445,7 +445,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - في حدود من 2 إلي 4 أسطر
         - تبرز قيمة مضافة لا يعرفها الجميع
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -459,7 +459,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - العيوب (أوماذا تتجنب) (نقاط)
         - اختم بملاحظة قصيرة (200 حرف) تلخص وجهة نظرك كخبير
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:4]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -472,7 +472,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - النقاط بالإيموجي
         - اختم بملاحظة قصيرة (200 حرف)
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -485,7 +485,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - في حدود من 2 إلى 4 أسطر
         - تشجع أيضاً على التعليق والمشاركة بإسلوب لا واعي
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون "الخاتمة:" أو عناوين.
         """,
@@ -498,7 +498,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - كل فقرة 3 أسطر بحد أقصى
         - مسافة بسيطة بين الفقرات
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:2]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -514,7 +514,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
         - داخل div بخلفية #bb3b17 أو #faad2a أو ما بينهم
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:3]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ الكتابة فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
         """,
@@ -526,7 +526,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - أسلوب بشري جذاب بعيداً عن الصيغ البيعية المكررة
         - تشجع على إكمال القراءة
         
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:1]) if synonyms_list else keyword}
+        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {', '.join(synonyms_list[:5]) if synonyms_list else keyword}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         ابدأ فوراً في الكتابة بدون أي مقدمات.
         """
