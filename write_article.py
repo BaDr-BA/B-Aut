@@ -706,10 +706,12 @@ def write_full_article(article_data):
                     except: pass
 
             except Exception as e:
-                retries += 1
-                
                 # --- أضف هذا السطر لتغيير المفتاح الحالي عند الخطأ ---
                 global CURRENT_KEY
+				
+                retries += 1
+                print(f"   ⚠️ Error ({e}). Switching key...")
+                
                 # نختار مفتاح عشوائي جديد غير الحالي
                 other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
                 if other_keys:
@@ -765,11 +767,12 @@ def write_full_article(article_data):
             break # نجحنا، نخرج من اللوب
             
         except Exception as e:
+            # تغيير المفتاح للمحاولة التالية
+            global CURRENT_KEY
+			
             summary_attempts += 1
             print(f"   ⚠️ Summary Retry {summary_attempts}: {e}")
             
-            # تغيير المفتاح للمحاولة التالية
-            global CURRENT_KEY
             other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
             if other_keys: 
                 CURRENT_KEY = random.choice(other_keys)
