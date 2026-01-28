@@ -554,6 +554,9 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
 
 def write_full_article(article_data):
     """النسخة المطورة: ترتيب الهيكل، ملخص في النهاية، ذاكرة بولد، معالجة أخطاء أفضل"""
+    # --- تصحيح الخطأ: تعريف المتغير العام في بداية الدالة ---
+    global CURRENT_KEY
+    
     title = article_data['title']
     keyword = article_data['keyword']
     meta_description = article_data.get('meta_description', '')
@@ -690,7 +693,6 @@ def write_full_article(article_data):
                 print("   ⏳ Sleeping 120s to avoid Quota limit...")
                 time.sleep(120) 
                 
-                # تم نقل كود الملخص من هنا --- (أصبح خارج اللوب)
 
                 # كود التحفيز (Motivation) يبقى هنا
                 if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
@@ -706,9 +708,6 @@ def write_full_article(article_data):
                     except: pass
 
             except Exception as e:
-                # --- أضف هذا السطر لتغيير المفتاح الحالي عند الخطأ ---
-                global CURRENT_KEY
-				
                 retries += 1
                 print(f"   ⚠️ Error ({e}). Switching key...")
                 
@@ -741,9 +740,9 @@ def write_full_article(article_data):
     summary_attempts = 0
     while summary_attempts < 3:
         try:
-            # تجهيز البرومبت مع سياق من المقال (أول 4000 حرف)
+            # تجهيز البرومبت مع سياق من المقال (أول 15000 حرف)
             sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-            sum_prompt += f"\n\nلخص النص التالي:\n{full_html[:4000]}..."
+            sum_prompt += f"\n\nلخص النص التالي:\n{full_html[:15000]}..."
             
             summary_model = get_gemini_model() # طلب موديل (قد يكون جديد)
             sum_res = summary_model.generate_content(sum_prompt)
@@ -767,9 +766,6 @@ def write_full_article(article_data):
             break # نجحنا، نخرج من اللوب
             
         except Exception as e:
-            # تغيير المفتاح للمحاولة التالية
-            global CURRENT_KEY
-			
             summary_attempts += 1
             print(f"   ⚠️ Summary Retry {summary_attempts}: {e}")
             
