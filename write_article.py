@@ -587,7 +587,7 @@ def write_full_article(article_data):
             messages_history.append({"role": "assistant", "content": content})
 
             # الإرسال
-            content = response.text.replace("```html", "").replace("```", "").strip()
+            content = content.replace("```html", "").replace("```", "").strip()
             content = clean_text_symbols(content)
                 
             # استخدام دالة البولد الجديدة مع التراكر
@@ -613,8 +613,8 @@ def write_full_article(article_data):
                 print("   -> Injecting Motivation...")
                 try:
                     mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
-                    res = chat.send_message(mot_prompt)
-                    mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
+                    mot_res = ask_groq([{"role": "user", "content": mot_prompt}])
+                    mot_content = clean_text_symbols(mot_res.replace('```html','').replace('```',''))
                     # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
                     full_html += f"<div style='text-align:center;'>{mot_content}</div>\n<br>\n"
                     print("   ⏳ Sleeping 2s after Motivation...")
@@ -633,7 +633,7 @@ def write_full_article(article_data):
         sum_prompt += f"\n\nلخص النص التالي:\n{full_html[:15000]}..."
         sum_res = ask_groq([{"role": "user", "content": sum_prompt}])
             
-        sum_content = clean_text_symbols(clean_json_response(sum_res.text))
+        sum_content = clean_text_symbols(clean_json_response(sum_res))
         sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
             
         # حقن الملخص في المكان المناسب
