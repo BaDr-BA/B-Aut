@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- وضع الاختبار ---
-TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
+TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
 
 # --- الإعدادات والمفاتيح ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
