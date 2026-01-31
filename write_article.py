@@ -337,13 +337,15 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     # تحويل القائمة لنص
     syns_str = ', '.join(current_synonyms) if current_synonyms else keyword
 
-    # تعليمات صارمة لتقليل الكلام الزائد
+    # إضافة تعليمات نهائية موحدة
     strict_instructions = """
     ⛔ تعليمات صارمة جداً:
     1. ممنوع كتابة أي مقدمات أو مقدمة ترحيبية (مثل: بالتأكيد، إليك الفقرة...، ...إلخ).
     2. ممنوع كتابة العناوين مرة أخرى.
-    3. التزم بعدد الأسطر المحدد بدقة (لا تزيد ولا تنقص).
-    4. اكتب بأسلوب بشري مباشر (ادخل في صلب الموضوع فوراً).
+    3. التزم بعدد الأسطر المحدد بدقة.
+    4. ابدأ مباشرة بالمحتوى المطلوب.
+    5. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين.
+    6. اكتب بأسلوب بشري طبيعي ومباشر 100% وموجه لنية الباحث وهدفه 100%.
     """
 
     prompts = {
@@ -462,9 +464,10 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         {strict_instructions}
         
         اكتب خاتمة كاملة وشاملة وموجهة لنية الباحث + كأن خبير بيختم عن "{section_title}" احترافية وتشد القارئ بإسلوب لا واعي علي تصفح الموقع لقراءة الكثير من المواضيع الأخرى وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
-        - تلخص المقال كاملاً
+        - تلخص الموضوع كاملاً
         - في حدود من 2 إلى 4 أسطر
-        - تشجع أيضاً على التعليق والمشاركة بإسلوب لا واعي
+		- الدعوة لاتخاذ إجراء (Call to Action)
+        - تشجع على التعليق والمشاركة بإسلوب لا واعي وحثه على قراءة المزيد من المواضيع ذات صلة
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -515,24 +518,17 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     
     base_prompt = prompts.get(section_type, prompts["text_paragraph"])
     
-    # إضافة تعليمات نهائية موحدة
-    base_prompt += """
-    
-    ⚠️ تعليمات مهمة:
-    1. لا تكتب عناوين إضافية أو مقدمات قبل المحتوى
-    2. ابدأ مباشرة بالمحتوى المطلوب
-    3. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين
-    4. اكتب بأسلوب بشري طبيعي ومباشر وموجه لنية الباحث
-    """
-    
     return base_prompt
 
 def write_full_article(article_data):
-    """كتابة المقال باستخدام Llama 3.3"""
+    """كتابة المقال مع دمج الهدف (Goal)"""
     title = article_data['title']
     keyword = article_data['keyword']
     meta_description = article_data.get('meta_description', '')
-    
+
+    # 1. سحب الهدف من ملف الخطة
+    article_goal = article_data.get('goal', f'تقديم دليل شامل ومفيد حول {keyword} يساعد القارئ على الفهم والتطبيق.')
+	
     print(f"🏗️ Generating structure for: {title}")
     original_structure = generate_article_structure(title, keyword)
 
@@ -550,7 +546,6 @@ def write_full_article(article_data):
         else: body_sec.append(item)
         
     structure = body_sec + faq_sec + conc_sec
-    # -----------------------------------------------------------
 
     print(f"🔍 Generating synonyms for keyword: {keyword}")
     synonyms = get_synonyms(keyword)
@@ -577,25 +572,27 @@ def write_full_article(article_data):
     # متغير لتتبع البولد عالمياً (عشان ميكررش البولد في المقال كله)
     global_bold_tracker = set()
 
-    # --- سجل المحادثة (الذاكرة) ---
-    messages_history = [
-        {"role": "system", "content": f"""
+    # --- السيستم برومبت الجديد (يتضمن الهدف) ---
+    system_prompt = f"""
 	أنت كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة وخبير متخصص في السيو الجديد.
-    
+    🎯 هدف المقال الرئيسي: "{article_goal}"
     قواعد الكتابة:
-    1. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة
-    2. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
-    3. استخدم "{keyword}" ومرادفاتها طبيعياً
-    4. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
-    5. لا تكرر العناوين
-    6. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص نهائياً
+    1. نفذ هذا الهدف في كل فقرة تكتبها.
+    2. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة والسلسة والممتعة
+    3. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
+    4. استخدم "{keyword}" ومرادفاتها طبيعياً
+    5. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
+    6. لا تكرر العناوين
+    7. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص نهائياً
     
-    مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات."""}
-    ]
-    
+    مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
+	"""
+
+    messages_history = [{"role": "system", "content": system_prompt}]
+	
     mid_index = len(structure) // 2
     
-    # 2. المرور على الأقسام ببطء شديد
+    # 3. المرور على الأقسام ببطء شديد
     for i, section in enumerate(structure):
         level = section.get('level', 'h2')
         title_text = section.get('title', '')
@@ -605,8 +602,13 @@ def write_full_article(article_data):
         write_title = True
         if sec_type == 'conclusion': write_title = False
         if sec_type == 'introduction' and ('مقدمة' in title_text or not title_text): write_title = False
-        
-        if write_title:
+
+        # الأسئلة الشائعة عنوانها h2 والباقي h3 داخل المحتوى
+        if sec_type == 'faq':
+             full_html += f"<h2>{title_text}</h2>\n"
+             write_title = False # عشان منكررش العنوان
+		
+        if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
             elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
         
@@ -618,7 +620,7 @@ def write_full_article(article_data):
         messages_history.append({"role": "user", "content": prompt})
         
         try:
-            print(f"   ✍️ Writing: {title_text}...")
+            print(f"   ✍️ Writing: {title_text} ({sec_type})...")
             
             # الكتابة
             content = ask_groq(messages_history)
@@ -626,7 +628,7 @@ def write_full_article(article_data):
             # حفظ الرد في السجل
             messages_history.append({"role": "assistant", "content": content})
 
-            # الإرسال
+            # تنظيف
             content = content.replace("```html", "").replace("```", "").strip()
             content = clean_text_symbols(content)
                 
