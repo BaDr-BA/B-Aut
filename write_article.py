@@ -168,6 +168,33 @@ def format_headings_style(html_content):
     pattern = r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)'
     return re.sub(pattern, replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
 
+def get_gemini_model():
+    """اختيار المفتاح المحدد أو عشوائي في حالة عدم التحديد"""
+    global CURRENT_KEY
+    
+    if not GEMINI_API_KEYS:
+        raise ValueError("No Gemini API keys found!")
+    
+    # إذا لم يتم تحديد مفتاح بعد، اختر واحداً عشوائياً
+    if CURRENT_KEY is None:
+        CURRENT_KEY = random.choice(GEMINI_API_KEYS)
+    
+    # طباعة جزء من المفتاح للتأكد (أول 5 حروف)
+    key_hint = CURRENT_KEY[:5] + "..."
+    # print(f"🤖 Using API Key starting with: {key_hint}") # (اختياري للتجربة)
+    
+    genai.configure(api_key=CURRENT_KEY)
+    
+    models_list = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash-lite',
+    ]
+    selected_model = random.choice(models_list)
+    
+    return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
+
 def generate_article_structure(title, keyword):
     """توليد هيكل المقال بناءً على تحليل المنافسين (المحاكى)"""
     
