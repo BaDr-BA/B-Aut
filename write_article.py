@@ -5,9 +5,12 @@ import time
 import re
 import logging
 from github import Github, Auth
-from groq import Groq
+import google.generativeai as genai
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from googletrans import Translator
+import typing_extensions as typing
 
 # إعداد الـ Logging
 logging.basicConfig(
@@ -24,7 +27,8 @@ logger = logging.getLogger(__name__)
 TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
 
 # --- الإعدادات والمفاتيح ---
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 7) if os.environ.get(f"GEMINI_API_KEY_{i}")]
+CURRENT_KEY = None # نخزن فيه المفتاح المختار لهذه الجلسة
 CLIENT_ID = os.environ.get("BLOGGER_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("BLOGGER_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("BLOGGER_REFRESH_TOKEN")
@@ -32,6 +36,14 @@ BLOG_ID = os.environ.get("BLOGGER_BLOG_ID")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO_NAME = "BaDr-BA/B-Aut"
 PLANS_DIR = "plans"
+
+# إعدادات الأمان لـ Gemini (لتقليل الحجب)
+SAFETY_SETTINGS = {
+    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+}
 
 # ---------------------------------------------------------
 # دالة المراقبة وتحديث ملف الحالة (توضع هنا لتراها كل الدوال)
@@ -76,37 +88,9 @@ def update_status_log(message):
     except Exception as e:
         print(f"⚠️ Could not update status log: {e}")
 
-
 def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     return build('blogger', 'v3', credentials=creds)
-
-def ask_groq(messages, json_mode=False):
-    """دالة مركزية للاتصال بـ Llama 3.3 عبر Groq"""
-    if not GROQ_API_KEY:
-        raise ValueError("❌ No GROQ_API_KEY found!")
-
-    client = Groq(api_key=GROQ_API_KEY)
-    model_id = "llama-3.3-70b-versatile" 
-
-    for attempt in range(3):
-        try:
-            chat_completion = client.chat.completions.create(
-                messages=messages,
-                model=model_id,
-                temperature=0.7,
-                response_format={"type": "json_object"} if json_mode else None
-            )
-            return chat_completion.choices[0].message.content
-        except Exception as e:
-            if "429" in str(e): 
-                print(f"⚠️ Groq Rate Limit. Waiting 20s...")
-                time.sleep(20)
-            else:
-                print(f"⚠️ Groq Error: {e}")
-                time.sleep(5)
-    
-    raise Exception("❌ Failed to get response from Groq.")
 
 def format_headings_style(html_content):
     """تحويل النقطتين : إلى مسافة وعمود ¦ في العناوين H1-H4 فقط"""
@@ -121,16 +105,27 @@ def clean_json_response(text):
     return text
 
 def create_permalink_gemini(keyword_arabic):
-    """توليد رابط ثابت بالإنجليزية باستخدام Llama"""
+    """توليد رابط ثابت بالإنجليزية حصراً"""
     try:
-        messages = [
-            {"role": "system", "content": "You are a translator."},
-            {"role": "user", "content": f"Translate '{keyword_arabic}' to English slug (e.g. profit-from-internet). Output ONLY the slug."}
-        ]
-        slug = ask_groq(messages)
-        slug = re.sub(r'[^a-z0-9\-]', '', slug.strip().lower())
-        return slug if len(slug) > 2 else "article"
-    except:
+        model = get_gemini_model()
+        # برومبت صارم للترجمة
+        prompt = f"""
+        Task: Strictly translate the Arabic phrase "{keyword_arabic}" into English.
+        - Convert to lowercase.
+        - Remove ALL special characters.
+        - Replace spaces with hyphens (-).
+        - Output ONLY the final slug string (e.g., profit-from-internet).
+        - Do NOT write any explanation.
+        """
+        response = model.generate_content(prompt)
+        permalink = response.text.strip().lower()
+        
+        # تنظيف نهائي لأي حروف غير إنجليزية
+        permalink = re.sub(r'[^a-z0-9\-]', '', permalink)
+        return permalink
+    except Exception as e:
+        print(f"⚠️ Permalink Error: {e}")
+        # خطة بديلة في حال فشل Gemini نستخدم مكتبة re فقط لعمل slug عربي
         return re.sub(r'[^0-9\u0600-\u06FF]+', '-', keyword_arabic).strip('-')
 
 def clean_text_symbols(text):
