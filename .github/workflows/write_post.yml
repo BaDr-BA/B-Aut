@@ -54,29 +54,3 @@ jobs:
           name: error-logs
           path: output.log
           retention-days: 7
-          
-      - name: Commit changes
-        if: success()
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          
-          # 1. نخبي التغييرات الحالية مؤقتاً
-          git stash
-          
-          # 2. نسحب الجديد من المستودع
-          git pull origin main --rebase
-          
-          # 3. نرجع التغييرات بتاعتنا تاني
-          git stash pop || echo "No stash to pop"
-          
-          # 4. نضيف الملفات المهمة فقط (تجاهل اللوج)
-          git add plans/ published_titles.txt last_key_index.txt
-          
-          # 5. نرفع التغييرات
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto: Article published $(date +'%Y-%m-%d %H:%M')"
-            git push origin main
-          fi
