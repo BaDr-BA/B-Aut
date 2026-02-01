@@ -45,49 +45,6 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-# ---------------------------------------------------------
-# دالة المراقبة وتحديث ملف الحالة (توضع هنا لتراها كل الدوال)
-# ---------------------------------------------------------
-def update_status_log(message):
-    """تحديث ملف status.md في المستودع لمراقبة العمل لحظة بلحظة"""
-    
-    # طباعة الرسالة في الكونسول دائماً للمتابعة السريعة
-    print(f"📝 LOG: {message}")
-
-    if TEST_MODE: 
-        return # في وضع الاختبار نكتفي بالطباعة فقط
-
-    try:
-        # استخدام طريقة المصادقة الجديدة لتجنب التحذيرات
-        from github import Auth
-        auth = Auth.Token(GITHUB_TOKEN)
-        g = Github(auth=auth)
-        
-        repo = g.get_repo(REPO_NAME)
-        
-        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f"- `{timestamp}` : {message}"
-
-        try:
-            # محاولة جلب الملف وتحديثه
-            contents = repo.get_contents("status.md")
-            current_log = contents.decoded_content.decode("utf-8")
-            
-            # نضيف السطر الجديد في البداية عشان تشوف آخر حاجة فوق
-            new_log = f"{log_entry}\n{current_log}"
-            
-            # تحديث الملف (نقوم بقص اللوج لو زاد عن حد معين عشان ميبقاش تقيل)
-            if len(new_log) > 50000: 
-                new_log = new_log[:50000] + "\n... (تم حذف السجلات القديمة)"
-                
-            repo.update_file(contents.path, f"Status: {message}", new_log, contents.sha)
-        except:
-            # إذا الملف غير موجود، ننشئه
-            repo.create_file("status.md", "Init status log", f"# 📊 سجل عمليات البوت\n\n{log_entry}")
-            
-    except Exception as e:
-        print(f"⚠️ Could not update status log: {e}")
-
 def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     return build('blogger', 'v3', credentials=creds)
