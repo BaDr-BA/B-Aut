@@ -92,13 +92,6 @@ def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     return build('blogger', 'v3', credentials=creds)
 
-def format_headings_style(html_content):
-    """تحويل النقطتين : إلى مسافة وعمود ¦ في العناوين H1-H4 فقط"""
-    def replace_colon(match):
-        return f"{match.group(1)}{match.group(2).replace(':', ' ¦')}{match.group(3)}"
-    
-    return re.sub(r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)', replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
-
 def clean_json_response(text):
     """تنظيف رد Gemini لاستخراج JSON صالح"""
     text = text.replace("```json", "").replace("```", "").strip()
@@ -186,10 +179,8 @@ def get_gemini_model():
     genai.configure(api_key=CURRENT_KEY)
     
     models_list = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-2.0-flash-lite',
+        'gemma-3-27b-it',
+        'gemma-3-12b-it',
     ]
     selected_model = random.choice(models_list)
     
@@ -240,25 +231,46 @@ def generate_article_structure(title, keyword):
     - لا تكرر نفس العنوان
 	- أريد تحليلًا عمليًا مبنيًا على الفجوات ونقاط الضعف لدى المنافسين، وليس مجرد ملخص لمحتواهم. الهدف تصدر نتائج البحث بالمقال الجديد التى يغطى كل الجوانب ونقاط الضعف عند المنافسين
     """
-    
-    try:
-        response = ask_groq([{"role": "user", "content": prompt}], json_mode=True)
-        structure = json.loads(response)
-        # تصحيح لو الرد جه داخل مفتاح
-        if isinstance(structure, dict):
-            keys = list(structure.keys())
-            if keys: structure = structure[keys[0]]
+
+    # محاولة التوليد 3 مرات في حالة الحظر
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            model = get_gemini_model() # تغيير الموديل مع كل محاولة
+            response = model.generate_content(prompt)
             
-        return structure
-    except Exception as e:
-        print(f"Structure Error: {e}")
-        raise Exception("❌ Failed to generate structure.")
+            clean_text = clean_json_response(response.text)
+            structure = json.loads(clean_text)
+            
+            # التحقق من التكرار
+            titles_seen = set()
+            unique_structure = []
+            for item in structure:
+                if item['title'] not in titles_seen:
+                    titles_seen.add(item['title'])
+                    unique_structure.append(item)
+            
+            if len(unique_structure) > 3: # تأكد أن الهيكل محترم مش قصير
+                return unique_structure
+                
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                wait_time = 20 * (attempt + 1)
+                print(f"⚠️ Structure Quota hit! Waiting {wait_time}s... ({attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                print(f"⚠️ Structure Error: {e}")
+                time.sleep(20)
+
+    # إذا فشلت كل المحاولات، نرفع خطأ ليتم إيقاف العملية والحفاظ على الخطة
+    raise Exception("❌ Failed to generate article structure after retries. Aborting to save plan.")
 
 def get_synonyms(keyword):
     """
-    توليد مرادفات للكلمة المفتاحية تلقائياً باستخدام Groq
+    توليد مرادفات للكلمة المفتاحية تلقائياً باستخدام Gemini
     """
     try:
+        model = get_gemini_model()
         prompt = f"""
         أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية.
         
@@ -280,16 +292,35 @@ def get_synonyms(keyword):
         - JSON فقط بدون أي كلام
         - لا تستخدم markdown أو ```
         """
-        response = ask_groq([{"role": "user", "content": prompt}], json_mode=True)
-        synonyms = json.loads(response)
-        if isinstance(synonyms, dict): synonyms = list(synonyms.values())[0]
-        return synonyms[:70]
-    except:
+        response = model.generate_content(prompt)
+        synonyms_text = clean_json_response(response.text)
+        
+        # محاولة تحويل النص لـ JSON
+        synonyms = json.loads(synonyms_text)
+        
+        # التأكد أنها قائمة وليست dictionary
+        if isinstance(synonyms, dict):
+            synonyms = list(synonyms.values())
+        
+        # تنظيف وإضافة الكلمة الأساسية
+        synonyms = [s.strip() for s in synonyms if s.strip()]
+        if keyword not in synonyms:
+            synonyms.insert(0, keyword)
+        
+        # إزالة التكرار والحد الأقصى 70 كلمة
+        synonyms = list(dict.fromkeys(synonyms))[:70]
+        
+        print(f"   📝 Generated {len(synonyms)} synonyms for '{keyword}'")
+        return synonyms
+        
+    except Exception as e:
+        print(f"   ⚠️ Could not generate synonyms: {e}")
+        # في حالة الفشل، نرجع الكلمة الأساسية فقط
         return [keyword]
 
 def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
     """
-    تغميق الكلمات المفتاحية بذكاء لتقليل الحشو (SEO 2026).
+    تغميق الكلمات المفتاحية بذكاء لتقليل الحشو (SEO الجديد).
     القاعدة: الكلمة الرئيسية مرة واحدة في المقال، والمرادفات بحد أقصى مرة واحدة لكل نوع.
     """
     if synonyms_list is None: synonyms_list = []
@@ -594,8 +625,12 @@ def write_full_article(article_data):
     # متغير لتتبع البولد عالمياً (عشان ميكررش البولد في المقال كله)
     global_bold_tracker = set()
 
+    # 1. إعداد الجلسة الأولى
+    model = get_gemini_model()
+    chat = model.start_chat(history=[])
+
     # --- السيستم برومبت الجديد (يتضمن الهدف) ---
-    system_prompt = f"""
+    setup_prompt = f"""
 	أنت كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة وخبير متخصص في السيو الجديد.
     🎯 هدف المقال الرئيسي: "{article_goal}"
     قواعد الكتابة:
@@ -610,7 +645,12 @@ def write_full_article(article_data):
     مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
 	"""
 
-    messages_history = [{"role": "system", "content": system_prompt}]
+    try:
+        chat.send_message(setup_prompt)
+        print("   ✅ Setup complete. Waiting 25s...")
+        time.sleep(25)
+    except:
+        pass
 	
     mid_index = len(structure) // 2
     
@@ -638,66 +678,92 @@ def write_full_article(article_data):
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
         
-        # إضافة الطلب للسجل
-        messages_history.append({"role": "user", "content": prompt})
+        # محاولات الكتابة
+        success = False
+        retries = 0
+        max_retries = 3 
         
-        try:
-            print(f"   ✍️ Writing: {title_text} ({sec_type})...")
+        while not success and retries < max_retries:
+            try:
+                print(f"   ✍️ Writing: {title_text} ({sec_type})...")
             
-            # الكتابة
-            content = ask_groq(messages_history)
-            
-            # حفظ الرد في السجل
-            messages_history.append({"role": "assistant", "content": content})
+                # إعادة الجلسة عند الخطأ
+                if retries > 0:
+                    print("   🔄 Starting NEW session due to error...")
+                    model = get_gemini_model()
+                    chat = model.start_chat(history=[]) 
+                    try: chat.send_message(setup_prompt) 
+                    except: pass
 
-            # تنظيف
-            content = content.replace("```html", "").replace("```", "").strip()
-            content = clean_text_symbols(content)
+                # الإرسال
+                response = chat.send_message(prompt)
+                content = response.text.replace("```html", "").replace("```", "").strip()
+                content = clean_text_symbols(content)
                 
-            # استخدام دالة البولد الجديدة مع التراكر
-            content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
+            	# استخدام دالة البولد الجديدة مع التراكر
+            	content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
                 
-            if len(content) < 50: raise Exception("Content too short")
+            	if len(content) < 50: raise Exception("Content too short")
                 
-            full_html += content
+            	full_html += content
                 
-            # الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
-            if i < len(structure) - 1:
-                full_html += "\n<br>\n"
+            	# الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
+            	if i < len(structure) - 1:
+                	full_html += "\n<br>\n"
                 
-            success = True
-            print(f"   ✅ Done.")
+            	success = True
+            	print(f"   ✅ Done.")
                 
-            print("   ⏳ Sleeping 5s to avoid Quota limit...")
-            time.sleep(5) 
+            	print("   ⏳ Sleeping 65s to avoid Quota limit...")
+            	time.sleep(65) 
                 
 
-            # كود التحفيز (Motivation) يبقى هنا
-            if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
-                print("   -> Injecting Motivation...")
-                try:
-                    mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
-                    mot_res = ask_groq([{"role": "user", "content": mot_prompt}])
-                    mot_content = clean_text_symbols(mot_res.replace('```html','').replace('```',''))
-                    # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
-                    full_html += f"<div style='text-align:center;'>{mot_content}</div>\n<br>\n"
-                    print("   ⏳ Sleeping 2s after Motivation...")
-                    time.sleep(2)
-                except: pass
+                # كود التحفيز (Motivation) يبقى هنا
+                if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
+                    print("   -> Injecting Motivation...")
+                    try:
+                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
+                        res = chat.send_message(mot_prompt)
+                        mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
+                        # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
+                        full_html += f"<div style='text-align:center;'>{mot_content}</div>\n<br>\n"
+                        print("   ⏳ Sleeping 85s after Motivation...")
+                        time.sleep(85)
+                    except: pass
 
-        except Exception as e:
-            print(f"   ⚠️ Error: {e}")
-            full_html += f"<p style='color:red; text-align:center;'><i>⚠️ تعذر توليد ({sec_type})</i></p>\n"
+            except Exception as e:
+                retries += 1
+                
+                # --- أضف هذا السطر لتغيير المفتاح الحالي عند الخطأ ---
+                global CURRENT_KEY
+                # نختار مفتاح عشوائي جديد غير الحالي
+                other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+                if other_keys:
+                    CURRENT_KEY = random.choice(other_keys)
+                    print(f"   🔄 Switched to a new API Key due to error.")
+                # ---------------------------------------------------
+
+                wait_time = 75 * retries 
+                print(f"   ⚠️ Error ({e}). Waiting {wait_time}s...")
+                time.sleep(wait_time) 
+                
+                if retries == max_retries:
+                    full_html += f"<p>...</p>\n" # فشل صامت أفضل من رسالة خطأ
 
     # --- الملخص ---
     print("   📝 Generating Summary...")
     try:
-        # تجهيز البرومبت مع سياق من المقال (أول 15000 حرف)
+        # نعطيه سياق من المقال (أول 15000 حرف) ليفهم عن ماذا يلخص
+        context_preview = full_html[:15000]
         sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-        sum_prompt += f"\n\nلخص النص التالي:\n{full_html[:15000]}..."
-        sum_res = ask_groq([{"role": "user", "content": sum_prompt}])
-            
-        sum_content = clean_text_symbols(clean_json_response(sum_res))
+        sum_prompt += f"\n\nاستناداً للنص التالي:\n{context_preview}..."
+        
+        # جلسة جديدة للملخص لضمان عدم التأثر بالسياق القديم
+        summary_chat = get_gemini_model().start_chat(history=[])
+        res = summary_chat.send_message(sum_prompt)
+        
+        sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
+        # تطبيق البولد على الملخص أيضاً
         sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
             
         # حقن الملخص في المكان المناسب
@@ -713,11 +779,14 @@ def write_full_article(article_data):
                 full_html += sum_content
             
         print("   ✅ Summary injected.")
-		
+        time.sleep(30)
     except Exception as e:
         print(f"   ⚠️ Summary failed: {e}")
 
-    return format_headings_style(full_html)
+    # --- التعديل: تنسيق العناوين : إلى | ---
+    full_html = format_headings_style(full_html)
+
+    return full_html
 
 def main():
     try:
@@ -726,6 +795,45 @@ def main():
         auth = Auth.Token(GITHUB_TOKEN)
         g = Github(auth=auth)
         repo = g.get_repo(REPO_NAME)
+
+        # --- بداية كود تدوير المفاتيح الذكي ---
+        global CURRENT_KEY
+        try:
+            # 1. محاولة قراءة رقم آخر مفتاح تم استخدامه
+            last_key_index = -1
+            try:
+                key_file = repo.get_contents("last_key_index.txt")
+                last_key_index = int(key_file.decoded_content.decode("utf-8").strip())
+                logger.info(f"🔄 Last used key index was: {last_key_index}")
+            except:
+                logger.info("ℹ️ No usage history found. Starting fresh.")
+
+            # 2. تحديد المؤشرات المتاحة (0, 1, 2...)
+            all_indices = list(range(len(GEMINI_API_KEYS)))
+            
+            # 3. استبعاد المفتاح الأخير (إلا لو كان هو الوحيد)
+            valid_indices = [i for i in all_indices if i != last_key_index]
+            if not valid_indices: valid_indices = all_indices # لو مفيش غير مفتاح واحد استخدمه وخلاص
+
+            # 4. اختيار مفتاح جديد عشوائي من القائمة المصفاة
+            new_index = random.choice(valid_indices)
+            CURRENT_KEY = GEMINI_API_KEYS[new_index]
+            logger.info(f"✅ Selected new key index: {new_index}")
+
+            # 5. تحديث الملف في المستودع بالرقم الجديد
+            if not TEST_MODE:
+                try:
+                    if last_key_index == -1:
+                        repo.create_file("last_key_index.txt", "Init key history", str(new_index))
+                    else:
+                        repo.update_file(key_file.path, "Update key rotation", str(new_index), key_file.sha)
+                except Exception as update_err:
+                    logger.warning(f"⚠️ Could not update key history: {update_err}")
+
+        except Exception as e:
+            logger.error(f"⚠️ Key rotation logic failed: {e}")
+            CURRENT_KEY = random.choice(GEMINI_API_KEYS) # خطة بديلة
+        # --- نهاية كود تدوير المفاتيح ---
 
         plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
         if not plan_files:
