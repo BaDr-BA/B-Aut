@@ -1,7 +1,7 @@
-groq
+google-generativeai
 PyGithub
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
 google-api-python-client
-typing-extensions
+google-auth-httplib2
+google-auth-oauthlib
+google-auth
+googletrans==4.0.0-rc1
