@@ -756,38 +756,56 @@ def write_full_article(article_data):
                 if retries == max_retries:
                     full_html += f"<p>...</p>\n" # فشل صامت أفضل من رسالة خطأ
 
-    # --- الملخص ---
+    # --- الملخص (نسخة محسنة مع إعادة المحاولة) ---
     print("   📝 Generating Summary...")
-    try:
-        # نعطيه سياق من المقال (أول 15000 حرف) ليفهم عن ماذا يلخص
-        context_preview = full_html[:15000]
-        sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-        sum_prompt += f"\n\nاستناداً للنص التالي:\n{context_preview}..."
-        
-        # جلسة جديدة للملخص لضمان عدم التأثر بالسياق القديم
-        summary_chat = get_gemini_model().start_chat(history=[])
-        res = summary_chat.send_message(sum_prompt)
-        
-        sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
-        # تطبيق البولد على الملخص أيضاً
-        sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
+    summary_success = False
+    sum_retries = 0
+    
+    # تنظيف النص من HTML لتقليل حجم التوكنز وتخفيف الحمل على الموديل
+    text_only_context = re.sub(r'<[^>]+>', ' ', full_html)[:12000] # نأخذ 12000 حرف نصي فقط
+    
+    while not summary_success and sum_retries < 3:
+        try:
+            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
+            sum_prompt += f"\n\nاستناداً للنص التالي:\n{text_only_context}..."
             
-        # حقن الملخص في المكان المناسب
-        if '<h2>' in full_html:
-            full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
-        else:
-            # لو مفيش عناوين، نحشره بعد المقدمة يدوياً
-            parts = full_html.split('<br>', 4)
-            if len(parts) >= 4:
-                parts.insert(3, f'\n{sum_content}\n')
-                full_html = '<br>'.join(parts)
+            # جلسة جديدة للملخص
+            summary_model = get_gemini_model()
+            summary_chat = summary_model.start_chat(history=[])
+            
+            res = summary_chat.send_message(sum_prompt)
+            sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
+            
+            # تطبيق البولد الذكي (بدون تكرار)
+            sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
+                
+            # حقن الملخص في المكان المناسب
+            if '<h2>' in full_html:
+                full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
             else:
-                full_html += sum_content
+                parts = full_html.split('<br>', 4)
+                if len(parts) >= 4:
+                    parts.insert(3, f'\n{sum_content}\n')
+                    full_html = '<br>'.join(parts)
+                else:
+                    full_html += sum_content
+                
+            print("   ✅ Summary injected.")
+            summary_success = True
+            time.sleep(30)
             
-        print("   ✅ Summary injected.")
-        time.sleep(30)
-    except Exception as e:
-        print(f"   ⚠️ Summary failed: {e}")
+        except Exception as e:
+            sum_retries += 1
+            print(f"   ⚠️ Summary failed (Attempt {sum_retries}/3): {e}")
+            
+            # تبديل المفتاح عند الفشل
+            if sum_retries < 3:
+                # كود تدوير المفتاح
+                other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+                if other_keys:
+                    CURRENT_KEY = random.choice(other_keys)
+                    print(f"   🔄 Switched Key for summary retry.")
+                time.sleep(10) # راحة قصيرة
 
     # --- التعديل: تنسيق العناوين : إلى | ---
     full_html = format_headings_style(full_html)
