@@ -79,12 +79,16 @@ def create_permalink_gemini(keyword_arabic):
         model = get_gemini_model()
         # برومبت صارم للترجمة
         prompt = f"""
-        Task: Strictly translate the Arabic phrase "{keyword_arabic}" into English.
-        - Convert to lowercase.
-        - Remove ALL special characters.
-        - Replace spaces with hyphens (-).
-        - Output ONLY the final slug string (e.g., profit-from-internet).
-        - Do NOT write any explanation.
+        Task: Create a professional, short, and SEO-friendly English slug for the Arabic keyword: "{keyword_arabic}".
+        
+        Rules:
+        1. Do NOT translate literally. Understand the meaning and give the best English SEO keyword.
+        2. Use max 3-5 words.
+        3. Convert to lowercase.
+        4. Remove stop words (like 'the', 'of', 'in', 'how-to' if unnecessary).
+        5. Replace spaces with hyphens (-).
+        6. Remove all special characters.
+        7. Output ONLY the slug (e.g. digital-marketing-tips).
         """
         response = model.generate_content(prompt)
         permalink = response.text.strip().lower()
@@ -296,63 +300,42 @@ def get_synonyms(keyword):
 
 def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
     """
-    تغميق الكلمات المفتاحية بذكاء لتقليل الحشو (SEO الجديد).
-    القاعدة: الكلمة الرئيسية مرة واحدة في المقال، والمرادفات بحد أقصى مرة واحدة لكل نوع.
+    تغميق ذكي:
+    - الكلمة الأساسية: مرة واحدة في المقال كله.
+    - المرادفات: مرة واحدة لكل مرادف في المقال كله.
+    - الحد الأقصى في الفقرة الحالية: كلمة واحدة فقط (سواء أساسية أو مرادف).
     """
     if synonyms_list is None: synonyms_list = []
-    if global_tracker is None: global_tracker = set() # للأمان لو لم يمرر
+    if global_tracker is None: global_tracker = set()
     
-    # تجهيز القائمة: الكلمة الأساسية + المرادفات
+    # 1. تنظيف النص من أي بولد قديم (لأمان)
+    text = re.sub(r'</?(b|strong)>', '', text, flags=re.IGNORECASE)
+
+    # 2. تجهيز القائمة (الأطول أولاً)
     all_terms = [keyword] + synonyms_list
-    # ترتيب من الأطول للأقصر
     all_terms = sorted(list(set([t.strip() for t in all_terms if t.strip()])), key=len, reverse=True)
     
-    tokens = re.split(r'(<[^>]+>)', text)
-    processed_tokens = []
-    is_inside_bold = False
+    # 3. تقسيم النص لفقرات (على أساس <br> أو <p> أو <div>)
+    # لكن هنا النص يأتي كـ "قطعة" واحدة من Gemini، غالباً فقرة أو فقرتين.
+    # سنتعامل مع النص المرسل ككتلة واحدة (Block) ونسمح فيه بـ "بولد واحد فقط".
     
-    # تتبع البولد داخل "هذا النص المرسل فقط" (Local Tracker) لمنع تلوين الفقرة كلها
-    local_bold_count = 0 
-    
-    for token in tokens:
-        if not token: continue
+    term_bolded_in_this_block = False # هل قمنا بعمل بولد في هذه القطعة؟
+
+    for term in all_terms:
+        if term_bolded_in_this_block: break # خلاص عملنا واحد في الفقرة دي، كفاية.
+        if term in global_tracker: continue # الكلمة دي اتعملت قبل كده في المقال، فكك منها.
+        if len(term) < 2: continue
+
+        # بحث ذكي (Word Boundary)
+        pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(term) + r'(?![\w\u0600-\u06FF])'
         
-        # لو تاج HTML
-        if token.startswith('<'):
-            processed_tokens.append(token)
-            if '<b>' in token.lower() or '<strong>' in token.lower(): is_inside_bold = True
-            elif '</b>' in token.lower() or '</strong>' in token.lower(): is_inside_bold = False
-        else:
-            # لو نص عادي
-            if is_inside_bold:
-                processed_tokens.append(token)
-            else:
-                # لو وصلنا للحد الأقصى في هذا البلوك (مثلاً 2 بولد في الفقرة الواحدة كفاية جداً)
-                if local_bold_count >= 2:
-                    processed_tokens.append(token)
-                    continue
-
-                temp_text = token
-                # نلف على الكلمات
-                for term in all_terms:
-                    if local_bold_count >= 2: break # كفاية في الفقرة دي
-                    
-                    # الشرط القاتل: لو الكلمة دي اتعملت بولد قبل كده في المقال كله، انساها
-                    if term in global_tracker: continue
-                    if len(term) < 2: continue
-                    
-                    # بحث واستبدال آمن (Word Boundary)
-                    pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(term) + r'(?![\w\u0600-\u06FF])'
-                    
-                    if re.search(pattern, temp_text, flags=re.IGNORECASE):
-                        # استبدال أول ظهور فقط في هذا التوكن
-                        temp_text = re.sub(pattern, f'<b>{term}</b>', temp_text, count=1, flags=re.IGNORECASE)
-                        global_tracker.add(term) # سجل إننا حرقنا الكلمة دي خلاص
-                        local_bold_count += 1
-                
-                processed_tokens.append(temp_text)
-
-    return ''.join(processed_tokens)
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            # استبدال أول ظهور فقط
+            text = re.sub(pattern, f'<b>{term}</b>', text, count=1, flags=re.IGNORECASE)
+            global_tracker.add(term) # سجل إننا استخدمنا الكلمة دي خلاص
+            term_bolded_in_this_block = True # سجل إن الفقرة دي خدت نصيبها
+            
+    return text
 
 def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
     """اختيار البرومبت المناسب مع مرادفات عشوائية"""
@@ -441,8 +424,14 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ابدأ بمقدمة قصيرة تمهد للأسئلة والأجوبة (200 حرف)
         - ثم من 5 إلى 25 سؤال وجواب وتكون الأسئلة من اقتراحات جوجل التلقائية (تم البحث أيضًا عن). وقسم "الناس أيضًا يسألون" (People Also Ask). وقسم أسئلة أخرى
         - كل إجابة لا تزيد عن سطرين
+		- كل اجابة تبرز قيمة مضافة لا يعرفها الجميع
         - استخدم رموز ◀️ أو ⬌ بين السؤال والجواب
-        
+
+        الشروط:
+        1. اجعل كل سؤال في وسم <h3>.
+        2. اجعل الإجابة تحته مباشرة في وسم <p>.
+        3. لا تستخدم قوائم أو ترقيم، فقط h3 ثم p.
+		
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
@@ -641,6 +630,8 @@ def write_full_article(article_data):
     for i, section in enumerate(structure):
         level = section.get('level', 'h2')
         title_text = section.get('title', '')
+        # تنظيف العنوان من الإيموجي
+        title_text = re.sub(r'[^\w\s\u0600-\u06FF\d\-\(\)]', '', title_text).strip()
         sec_type = section.get('type', 'text_paragraph')
         
         # إضافة العناوين HTML (إلا لو كانت خاتمة أو مقدمة بدون عنوان صريح)
@@ -665,6 +656,8 @@ def write_full_article(article_data):
             # نبحث عن العنوان + الكلمة المفتاحية
             search_query = f"{title_text} {keyword}"
             web_context = search_google_info(search_query)
+            if web_context:
+                print(f"   🔍 Found info: {web_context[:1000]}...") # يطبع أول 1000 حرف فقط للتأكيد
         # -----------------------------
 
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
