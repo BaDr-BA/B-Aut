@@ -45,6 +45,7 @@ jobs:
           BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
           BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
         run: |
+          set -o pipefail
           python write_article.py 2>&1 | tee output.log
           
       - name: Upload logs on failure
