@@ -340,11 +340,9 @@ def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
 def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
     """اختيار البرومبت المناسب مع مرادفات عشوائية"""
     
-    # اختيار 2 مرادفات عشوائية لضمان التنوع في كل فقرة
-    current_synonyms = []
-    if synonyms_list:
-        # نختار عدد عشوائي بحد أقصى 2، أو كل القائمة لو أقل من 2
-        current_synonyms = random.sample(synonyms_list, min(len(synonyms_list), 2))
+    # نرسل كل المرادفات المتاحة (أول 35 مثلاً لتجنب الطول الزائد في البرومبت)
+    # ليختار الذكاء الاصطناعي الأنسب منها للسياق
+    current_synonyms = synonyms_list[:35] if synonyms_list else []
     
     # تحويل القائمة لنص
     syns_str = ', '.join(current_synonyms) if current_synonyms else keyword
@@ -625,7 +623,9 @@ def write_full_article(article_data):
         pass
 	
     mid_index = len(structure) // 2
-    
+
+    current_h2_context = "" # متغير لتخزين عنوان القسم الحالي
+	
     # 3. المرور على الأقسام ببطء شديد
     for i, section in enumerate(structure):
         level = section.get('level', 'h2')
@@ -633,6 +633,8 @@ def write_full_article(article_data):
         # تنظيف العنوان من الإيموجي
         title_text = re.sub(r'[^\w\s\u0600-\u06FF\d\-\(\)]', '', title_text).strip()
         sec_type = section.get('type', 'text_paragraph')
+        if level == 'h2':
+            current_h2_context = title_text # احفظ العنوان الكبير
         
         # إضافة العناوين HTML (إلا لو كانت خاتمة أو مقدمة بدون عنوان صريح)
         write_title = True
@@ -681,9 +683,22 @@ def write_full_article(article_data):
                 # إعادة الجلسة عند الخطأ
                 if retries > 0:
                     print("   🔄 Starting NEW session due to error...")
+                    # هنا بنغير المفتاح والكلام ده...
+                    
+                    # نبدأ شات جديد
                     model = get_gemini_model()
                     chat = model.start_chat(history=[]) 
-                    try: chat.send_message(setup_prompt) 
+                    
+                    try: 
+                        # 1. نبعت برومبت التهيئة الأساسي (عربي فصحى وغيره)
+                        chat.send_message(setup_prompt)
+                        
+                        # 2. (الجزء الجديد) لو إحنا في قسم فرعي H3، نفكره إحنا تبع مين
+                        if level == 'h3' and current_h2_context:
+                            print(f"   🧠 Reminding Gemini of context: {current_h2_context}")
+                            reminder = f"نحن الآن نكتب فقرة فرعية بعنوان '{title_text}' تابعة للقسم الرئيسي '{current_h2_context}'. أكمل الكتابة بناءً على هذا السياق."
+                            chat.send_message(reminder)
+                            
                     except: pass
 
                 # الإرسال
