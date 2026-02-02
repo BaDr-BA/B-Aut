@@ -691,12 +691,12 @@ def write_full_article(article_data):
                 content = response.text.replace("```html", "").replace("```", "").strip()
                 content = clean_text_symbols(content)
                 
-            	# استخدام دالة البولد الجديدة مع التراكر
-            	content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
+                # استخدام دالة البولد الجديدة مع التراكر
+                content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
                 
-            	if len(content) < 50: raise Exception("Content too short")
+                if len(content) < 50: raise Exception("Content too short")
                 
-            	full_html += content
+                full_html += content
                 
             	# الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
             	if i < len(structure) - 1:
