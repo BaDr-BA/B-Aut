@@ -11,6 +11,7 @@ from googleapiclient.discovery import build
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from googletrans import Translator
 import typing_extensions as typing
+from googlesearch import search
 
 # إعداد الـ Logging
 logging.basicConfig(
@@ -53,6 +54,24 @@ def clean_json_response(text):
     """تنظيف رد Gemini لاستخراج JSON صالح"""
     text = text.replace("```json", "").replace("```", "").strip()
     return text
+
+def search_google_info(query):
+    """البحث في جوجل لجلب معلومات حديثة"""
+    try:
+        print(f"   🌐 Googling: {query}...")
+        # advanced=True يجلب العنوان والوصف
+        # sleep_interval=5 ننتظر 5 ثواني بين النتائج لتجنب الحظر
+        results = search(query, num_results=3, advanced=True, sleep_interval=5)
+        
+        context = ""
+        for r in results:
+            context += f"- المصدر: {r.title}\n  المعلومة: {r.description}\n"
+            
+        if context:
+            return context
+    except Exception as e:
+        print(f"   ⚠️ Google Search failed: {e}")
+    return ""
 
 def create_permalink_gemini(keyword_arabic):
     """توليد رابط ثابت بالإنجليزية حصراً"""
@@ -632,7 +651,22 @@ def write_full_article(article_data):
             elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
         
         # تجهيز البرومبت
+        # --- بداية كود البحث المضاف ---
+        web_context = ""
+        # نبحث فقط في الفقرات التي تحتاج معلومات (ليست مقدمة أو خاتمة)
+        if sec_type in ['text_paragraph', 'faq', 'list_bullet', 'list_numbered', 'table']:
+            # نبحث عن العنوان + الكلمة المفتاحية
+            search_query = f"{title_text} {keyword}"
+            web_context = search_google_info(search_query)
+        # -----------------------------
+
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
+
+        # --- حقن المعلومات في البرومبت ---
+        if web_context:
+            prompt += f"\n\n🌍 **معلومات من بحث جوجل (استخدمها للدقة والمصداقية):**\n{web_context}\n"
+        # -------------------------------
+        
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
         
         # محاولات الكتابة
