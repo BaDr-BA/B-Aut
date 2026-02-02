@@ -698,15 +698,15 @@ def write_full_article(article_data):
                 
                 full_html += content
                 
-            	# الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
-            	if i < len(structure) - 1:
-                	full_html += "\n<br>\n"
+                # الفاصل (نتأكد أنه ليس الأخير وليس قبل الخاتمة مباشرة إذا كانت بدون عنوان)
+                if i < len(structure) - 1:
+                    full_html += "\n<br>\n"
                 
-            	success = True
-            	print(f"   ✅ Done.")
+                success = True
+                print(f"   ✅ Done.")
                 
-            	print("   ⏳ Sleeping 65s to avoid Quota limit...")
-            	time.sleep(65) 
+                print("   ⏳ Sleeping 65s to avoid Quota limit...")
+                time.sleep(65)
                 
 
                 # كود التحفيز (Motivation) يبقى هنا
