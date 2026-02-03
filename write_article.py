@@ -13,6 +13,7 @@ from googletrans import Translator
 import typing_extensions as typing
 from googlesearch import search
 from datetime import datetime
+import people_also_ask
 
 # إعداد الـ Logging
 logging.basicConfig(
@@ -83,6 +84,26 @@ def search_google_info(query):
         print(f"   ⚠️ Google Search failed: {e}")
     return ""
 
+def get_real_google_questions(keyword):
+    """جلب 7-25 سؤال حقيقي عشوائي من PAA"""
+    try:
+        print(f"   ❓ Fetching real PAA questions for: {keyword}...")
+        # نجلب عدد كبير (مثلاً 30) عشان نختار منهم عشوائي
+        # ملاحظة: people_also_ask بطيء قليلاً لأنه يحاكي التصفح
+        questions = []
+        for q in people_also_ask.get_related_questions(keyword, 25): # نجلب 25 سؤال
+            questions.append(q)
+            
+        # نختار عدد عشوائي بين 5 و 25 (أو حسب المتاح)
+        if questions:
+            count = random.randint(5, min(len(questions), 25))
+            selected_qs = random.sample(questions, count)
+            return "\n".join([f"- {q}" for q in selected_qs])
+            
+    except Exception as e:
+        print(f"   ⚠️ PAA Error: {e}")
+    return ""
+	
 def create_permalink_gemini(keyword_arabic):
     """توليد رابط ثابت بالإنجليزية حصراً"""
     try:
@@ -426,11 +447,11 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         
         "faq": f"""
         {strict_instructions}
-        
-        اكتب أسئلة شائعة وأجوبة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيجاوب باحترافية وتشد القارئ للقراءة لنهاية الأسئلة والأجوبة وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+
+		أكتب أسئلة شائعة وأجوبة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيجاوب باحترافية وتشد القارئ للقراءة لنهاية الأسئلة والأجوبة وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+        لديك قائمة بأسئلة حقيقية يبحث عنها الناس في جوجل (سأزودك بها).
         المطلوب:
         - ابدأ بمقدمة قصيرة تمهد للأسئلة والأجوبة (200 حرف)
-        - ثم من 5 إلى 25 سؤال وجواب وتكون الأسئلة من اقتراحات جوجل التلقائية (تم البحث أيضًا عن). وقسم "الناس أيضًا يسألون" (People Also Ask). وقسم أسئلة أخرى
         - كل إجابة لا تزيد عن سطرين
 		- كل اجابة تبرز قيمة مضافة لا يعرفها الجميع
         - استخدم رمو ◀️ في الجواب
@@ -667,8 +688,22 @@ def write_full_article(article_data):
         # الأسئلة الشائعة عنوانها h2 والباقي h3 داخل المحتوى
         if sec_type == 'faq':
              full_html += f"<h2>{title_text}</h2>\n"
-             write_title = False # عشان منكررش العنوان
-		
+             write_title = False
+             
+             # جلب الأسئلة الحقيقية
+             real_questions = get_real_google_questions(keyword)
+             
+             # جلب البرومبت الأساسي
+             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
+             
+             if real_questions:
+                 # نرفق الأسئلة الحقيقية للبرومبت
+                 prompt += f"\n\n🔴 الأسئلة المطلوبة (من جوجل PAA):\n{real_questions}\n"
+                 print(f"   ✅ Attached {len(real_questions.splitlines())} real questions to prompt.")
+             else:
+                 # لو فشل الجلب، نقوله ألف من عندك
+                 prompt += "\n\n(لم يتم العثور على أسئلة PAA، قم باقتراح أهم 10 أسئلة من عندك)"
+				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
             elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
