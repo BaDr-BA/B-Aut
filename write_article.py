@@ -746,7 +746,7 @@ def write_full_article(article_data):
             5. الهدف هو الحصرية والتميز، لا التكرار.
             """
             print("   ✅ Web context attached to prompt.") # تأكيد
-			print(f"   📜 PROMPT PREVIEW: {prompt[:300]}...") # الكلام الإنجليزي الذي جلبه من البحث
+            print(f"   📜 PROMPT PREVIEW: {prompt[:300]}...") # الكلام الإنجليزي الذي جلبه من البحث
         # -------------------------------
         
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
