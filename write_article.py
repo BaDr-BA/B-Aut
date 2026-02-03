@@ -12,6 +12,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from googletrans import Translator
 import typing_extensions as typing
 from googlesearch import search
+from datetime import datetime
 
 # إعداد الـ Logging
 logging.basicConfig(
@@ -25,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- وضع الاختبار ---
-TEST_MODE = True # اجعله False عندما تعتمد السكريبت نهائياً
+TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
 
 # --- الإعدادات والمفاتيح ---
 GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 7) if os.environ.get(f"GEMINI_API_KEY_{i}")]
@@ -56,16 +57,25 @@ def clean_json_response(text):
     return text
 
 def search_google_info(query):
-    """البحث في جوجل لجلب معلومات حديثة"""
+    """البحث في جوجل بالمحتوى الأجنبي الحديث وتلقائياً بالتاريخ الحالي"""
     try:
-        print(f"   🌐 Googling: {query}...")
-        # advanced=True يجلب العنوان والوصف
-        # sleep_interval=5 ننتظر 5 ثواني بين النتائج لتجنب الحظر
-        results = search(query, num_results=3, advanced=True, sleep_interval=5)
+        # 1. نحسب التاريخ الحالي (الشهر والسنة)
+        current_date = datetime.now().strftime("%B %Y") # مثلاً: February 2026
+        
+        # 2. نضيف كلمات إنجليزية لفرض البحث في المصادر الأجنبية
+        # ونضيف التاريخ الحالي لضمان الحداثة
+        advanced_query = f"{query} latest news guide {current_date} english"
+        
+        print(f"   🌐 Googling (Smart): {advanced_query}...")
+        
+        # 3. نجلب النتائج (lang='en' يفضل النتائج الإنجليزية)
+        results = search(advanced_query, num_results=3, advanced=True, sleep_interval=5, lang='en')
         
         context = ""
         for r in results:
-            context += f"- المصدر: {r.title}\n  المعلومة: {r.description}\n"
+            # نترجم العنوان والوصف للعربية عشان Gemini يفهمه ويصيغه في المقال العربي
+            # (ملاحظة: Gemini بيفهم إنجليزي كويس جداً، فممكن نبعتله الإنجليزي وهو يترجم ويصيغ)
+            context += f"- Source (English): {r.title}\n  Info: {r.description}\n"
             
         if context:
             return context
@@ -423,12 +433,22 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ثم من 5 إلى 25 سؤال وجواب وتكون الأسئلة من اقتراحات جوجل التلقائية (تم البحث أيضًا عن). وقسم "الناس أيضًا يسألون" (People Also Ask). وقسم أسئلة أخرى
         - كل إجابة لا تزيد عن سطرين
 		- كل اجابة تبرز قيمة مضافة لا يعرفها الجميع
-        - استخدم رموز ◀️ أو ⬌ بين السؤال والجواب
+        - استخدم رمو ◀️ في الجواب
 
+        ⛔ تحذير هام:
+        - لا تكتب العنوان الرئيسي "{section_title}" مرة أخرى.
+        - ابدأ فوراً بالسؤال الأول.
         الشروط:
         1. اجعل كل سؤال في وسم <h3>.
         2. اجعل الإجابة تحته مباشرة في وسم <p>.
         3. لا تستخدم قوائم أو ترقيم، فقط h3 ثم p.
+        التنسيق المطلوب:
+        <h3>السؤال الأول هنا</h3>
+        <p>الإجابة المختصرة هنا.</p>
+        
+        <h3>السؤال الثاني هنا</h3>
+        <p>الإجابة المختصرة هنا.</p>
+        ...
 		
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -506,20 +526,23 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         "summary_box": f"""
         {strict_instructions}
         
-        اكتب ملخص سريع مباشر للمقال التالي (سأزودك به) موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+        أنت خبير تلخيص محتوى. لديك قائمة بعناوين مقال كامل عن "{keyword}".
+		اكتب ملخص سريع مباشر للمقال بناءً على هذه العناوين (العناوين التي سأزودك بها لاحقاً...)، لتفيد القارئ المستعجل.
+		موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
         المحتوى:
 		- عنوان جذاب وشيق وفضولي لـ "خلاصة سريعة" مع اضافة الكلمة المفتاحية هذه "{keyword}"
         - ابدأ بجملة ترحيبية تشرح أن هذا هو ملخص ما سيجده الباحث أو القارئ
         - ملخص للمقال بالكامل
         - نقاط مركزة جداً
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
-        - داخل div بخلفية #bb3b17 أو #faad2a أو ما بينهم
+        - داخل <div>...</div> بخلفية #bb3b17 أو #faad2a أو ما بينهم
 
         الشروط التقنية (مهمة جداً):
-        1. استخدم وسم <h2> للعنوان الرئيسي فقط.
-        2. استخدم وسوم <p> للفقرات.
-        3. استخدم <ul> و <li> للنقاط (ممنوع استخدام النجمة * أو الشرطة -).
-        4. لا تستخدم Markdown أبداً (مثل ## أو **).
+        1. يجب أن يكون المخرج النهائي داخل <div> ... </div>
+        2. العنوان الرئيسي داخل الـ div يكون: <h2> ... </h2> مع {keyword}
+        3. استخدم قوائم نقطية <ul> و <li> لتلخيص النقاط المهمة.
+        4. لا تستخدم أي عناوين H2 أخرى داخل الـ div، فقط العنوان الرئيسي.
+        5. استخدم وسوم <p> للفقرات.
 		
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -664,9 +687,22 @@ def write_full_article(article_data):
 
         prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
 
-        # --- حقن المعلومات في البرومبت ---
+        # --- حقن المعلومات في البرومبت (بذكاء وحصرية) ---
         if web_context:
-            prompt += f"\n\n🌍 **معلومات من بحث جوجل (استخدمها للدقة والمصداقية):**\n{web_context}\n"
+            prompt += f"""
+            
+            🌍 مصادر ومعلومات حديثة (للاطلاع فقط):
+            {web_context}
+            
+            ⛔ تعليمات هامة جداً للتعامل مع هذه المعلومات:
+            1. استخدم المعلومات والأرقام والحقائق الموجودة هنا لضمان دقة المحتوى وحداثته.
+            2. ❌ ممنوع النسخ أو الترجمة الحرفية لهذه النصوص نهائياً.
+            3. أعد صياغة المعلومات بأسلوبك الخاص (أسلوب الخبير العربي المحترف) الذي طلبته منك سابقاً.
+            4. ادمج هذه المعلومات بسلاسة داخل الفقرة وكأنها من خبرتك الشخصية.
+            5. الهدف هو الحصرية والتميز، لا التكرار.
+            """
+            print("   ✅ Web context attached to prompt.") # تأكيد
+			print(f"   📜 PROMPT PREVIEW: {prompt[:300]}...") # الكلام الإنجليزي الذي جلبه من البحث
         # -------------------------------
         
         prompt += "\n\nأعطني المحتوى بصيغة HTML فقط (p, ul, li, table...) بدون ```html"
@@ -708,6 +744,17 @@ def write_full_article(article_data):
                 
                 # استخدام دالة البولد الجديدة مع التراكر
                 content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
+
+                # إصلاح: إزالة البولد من داخل الجداول للحفاظ على نظافتها
+                if '<table>' in content:
+                    # نستخدم Regex لإزالة <b> و <strong> المتداخلة في خلايا الجدول فقط
+                    # أو ببساطة، نترك الجدول كما هو ونقبل بالبولد القليل فيه، 
+                    # لكن لو Gemini عمل بولد كتير، ممكن نلغيه من الجدول كله:
+                    def remove_bold_from_table(match):
+                        table_content = match.group(0)
+                        return re.sub(r'</?(b|strong)>', '', table_content)
+                    
+                    content = re.sub(r'<table.*?>.*?</table>', remove_bold_from_table, content, flags=re.DOTALL)
                 
                 if len(content) < 50: raise Exception("Content too short")
                 
@@ -756,39 +803,44 @@ def write_full_article(article_data):
                 if retries == max_retries:
                     full_html += f"<p>...</p>\n" # فشل صامت أفضل من رسالة خطأ
 
-    # --- الملخص (نسخة محسنة مع إعادة المحاولة) ---
-    print("   📝 Generating Summary...")
+    # --- الملخص المطور (يعتمد على العناوين + تنسيق ملون) ---
+    print("   📝 Generating Summary based on Headings...")
     summary_success = False
     sum_retries = 0
     
-    # تنظيف النص من HTML لتقليل حجم التوكنز وتخفيف الحمل على الموديل
-    text_only_context = re.sub(r'<[^>]+>', ' ', full_html)[:12000] # نأخذ 12000 حرف نصي فقط
+    # 1. استخراج العناوين فقط لبناء ملخص ذكي
+    # نأخذ كل العناوين ما عدا قسم الأسئلة (لأنه طويل ومكرر في الملخص)
+    headings_context = []
+    found_faq = False
+    for item in structure:
+        if 'faq' in item['type'].lower() or 'أسئلة' in item['title']:
+            found_faq = True # وصلنا للأسئلة، نوقف الجمع أو نضيف عنوانها فقط
+            headings_context.append(f"- قسم الأسئلة الشائعة: {item['title']}")
+            break # كفاية كده، مش محتاجين تفاصيل الأسئلة في الملخص
+        
+        headings_context.append(f"- {item['level'].upper()}: {item['title']}")
+    
+    headings_text = "\n".join(headings_context)
     
     while not summary_success and sum_retries < 3:
         try:
             sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
-            sum_prompt += f"\n\nاستناداً للنص التالي:\n{text_only_context}..."
+            sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
-            # جلسة جديدة للملخص
             summary_model = get_gemini_model()
             summary_chat = summary_model.start_chat(history=[])
             
             res = summary_chat.send_message(sum_prompt)
             sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
             
-            # تطبيق البولد الذكي (بدون تكرار)
+            # تطبيق البولد الذكي
             sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
                 
-            # حقن الملخص في المكان المناسب
+            # 3. الحقن (مكان الكود القديم الذي سألت عنه في نقطة 3)
             if '<h2>' in full_html:
                 full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
             else:
-                parts = full_html.split('<br>', 4)
-                if len(parts) >= 4:
-                    parts.insert(3, f'\n{sum_content}\n')
-                    full_html = '<br>'.join(parts)
-                else:
-                    full_html += sum_content
+                full_html = f"{sum_content}\n<br>\n{full_html}"
                 
             print("   ✅ Summary injected.")
             summary_success = True
