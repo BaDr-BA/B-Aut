@@ -449,7 +449,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         {strict_instructions}
 
 		أكتب أسئلة شائعة وأجوبة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيجاوب باحترافية وتشد القارئ للقراءة لنهاية الأسئلة والأجوبة وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
-        لديك قائمة بأسئلة حقيقية يبحث عنها الناس في جوجل (سأزودك بها).
+        لديك قائمة بأسئلة حقيقية يبحث عنها الناس في جوجل الأسئلة من اقتراحات جوجل التلقائية (تم البحث أيضًا عن). وقسم "الناس أيضًا يسألون" (People Also Ask). وقسم أسئلة أخرى.
         المطلوب:
         - ابدأ بمقدمة قصيرة تمهد للأسئلة والأجوبة (200 حرف)
         - كل إجابة لا تزيد عن سطرين
@@ -690,19 +690,28 @@ def write_full_article(article_data):
              full_html += f"<h2>{title_text}</h2>\n"
              write_title = False
              
-             # جلب الأسئلة الحقيقية
+             # محاولة جلب أسئلة حقيقية
              real_questions = get_real_google_questions(keyword)
              
-             # جلب البرومبت الأساسي
-             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
+             # نجهز البرومبت الأساسي من القاموس (القديم القوي)
+             base_prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
              
              if real_questions:
-                 # نرفق الأسئلة الحقيقية للبرومبت
-                 prompt += f"\n\n🔴 الأسئلة المطلوبة (من جوجل PAA):\n{real_questions}\n"
-                 print(f"   ✅ Attached {len(real_questions.splitlines())} real questions to prompt.")
+                 # لو لقينا أسئلة حقيقية، نعدل البرومبت ليستخدمها
+                 prompt = f"""
+                 {base_prompt}
+                 
+                 🔥 إضافة هامة جداً:
+                 لقد جلبت لك أسئلة حقيقية يسألها الناس الآن في جوجل:
+                 {real_questions}
+                 
+                 المطلوب: ادمج هذه الأسئلة الحقيقية ضمن إجاباتك أو استبدل الأسئلة الافتراضية بها لتكون الفائدة قصوى.
+                 """
+                 print(f"   ✅ Using {len(real_questions.splitlines())} REAL questions.")
              else:
-                 # لو فشل الجلب، نقوله ألف من عندك
-                 prompt += "\n\n(لم يتم العثور على أسئلة PAA، قم باقتراح أهم 10 أسئلة من عندك)"
+                 # لو مفيش أسئلة حقيقية، نستخدم البرومبت القديم زي ما هو
+                 prompt = base_prompt
+                 print("   ⚠️ No real questions found. Using default prompt.")
 				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
