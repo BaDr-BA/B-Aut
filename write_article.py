@@ -843,19 +843,14 @@ def write_full_article(article_data):
                 content = response.text.replace("```html", "").replace("```", "").strip()
                 content = clean_text_symbols(content)
                 
-                # استخدام دالة البولد الجديدة مع التراكر
-                content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
-
-                # إصلاح: إزالة البولد من داخل الجداول للحفاظ على نظافتها
+                # 1. تنظيف أولي: إزالة أي بولد وضعه Gemini داخل الجداول (عشان يبقى الجدول نضيف)
                 if '<table>' in content:
-                    # نستخدم Regex لإزالة <b> و <strong> المتداخلة في خلايا الجدول فقط
-                    # أو ببساطة، نترك الجدول كما هو ونقبل بالبولد القليل فيه، 
-                    # لكن لو Gemini عمل بولد كتير، ممكن نلغيه من الجدول كله:
-                    def remove_bold_from_table(match):
-                        table_content = match.group(0)
-                        return re.sub(r'</?(b|strong)>', '', table_content)
-                    
-                    content = re.sub(r'<table.*?>.*?</table>', remove_bold_from_table, content, flags=re.DOTALL)
+                    def strip_bold_tags(match):
+                        return re.sub(r'</?(b|strong)>', '', match.group(0), flags=re.IGNORECASE)
+                    content = re.sub(r'<table.*?>.*?</table>', strip_bold_tags, content, flags=re.DOTALL)
+
+                # 2. الآن نطبق البولد بتاعنا (كلمات مفتاحية فقط) على النص كله
+                content = make_keywords_bold(content, keyword, synonyms, global_bold_tracker)
                 
                 if len(content) < 50: raise Exception("Content too short")
                 
