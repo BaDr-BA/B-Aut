@@ -84,20 +84,37 @@ def search_google_info(query):
         print(f"   ⚠️ Google Search failed: {e}")
     return ""
 
-def get_real_google_questions(keyword):
-    """جلب 7-25 سؤال حقيقي عشوائي من PAA"""
+def get_real_google_questions(keyword, existing_titles=[]):
+    """جلب أسئلة حقيقية مع استبعاد العناوين المكررة في المقال"""
     try:
         print(f"   ❓ Fetching real PAA questions for: {keyword}...")
-        # نجلب عدد كبير (مثلاً 30) عشان نختار منهم عشوائي
-        # ملاحظة: people_also_ask بطيء قليلاً لأنه يحاكي التصفح
-        questions = []
-        for q in people_also_ask.get_related_questions(keyword, 25): # نجلب 25 سؤال
-            questions.append(q)
+        
+        # نجلب أسئلة من المكتبة
+        raw_questions = []
+        try:
+            # نجلب حتى 25 سؤال
+            for q in people_also_ask.get_related_questions(keyword, 25):
+                raw_questions.append(q)
+        except: pass
+
+        # مرحلة الفلترة (عشان ميكررش عناوين موجودة في المقال)
+        final_questions = []
+        for q in raw_questions:
+            is_duplicate = False
+            for title in existing_titles:
+                # لو السؤال شبه عنوان موجود بنسبة كبيرة
+                if q.strip() in title.strip() or title.strip() in q.strip(): 
+                    is_duplicate = True
+                    break
             
-        # نختار عدد عشوائي بين 5 و 25 (أو حسب المتاح)
-        if questions:
-            count = random.randint(5, min(len(questions), 25))
-            selected_qs = random.sample(questions, count)
+            if not is_duplicate:
+                final_questions.append(q)
+        
+        # نختار عدد عشوائي من الأسئلة النظيفة
+        if final_questions:
+            # نختار من 5 لـ 25 (أو العدد المتاح لو أقل)
+            count = random.randint(5, min(len(final_questions), 25))
+            selected_qs = random.sample(final_questions, count)
             return "\n".join([f"- {q}" for q in selected_qs])
             
     except Exception as e:
@@ -136,13 +153,16 @@ def clean_text_symbols(text):
     """
     إزالة علامات الاقتباس والنجوم المزدوجة وكود keyword_strong المزعج
     """
-    # 1. تنظيف كود القالب المزعج (keyword_strong) واستبداله بـ bold عادي
+    # 1. إزالة الروابط <a> مع الاحتفاظ بالنص (نضعها في البداية لتنظيف النص الخام)
+    text = re.sub(r'<a\s+[^>]*>(.*?)</a>', r'\1', text, flags=re.IGNORECASE)
+	
+    # 2. تنظيف كود القالب المزعج (keyword_strong) واستبداله بـ bold عادي
     text = re.sub(r'<strong[^>]*id=["\']keyword_strong["\'][^>]*>', '<b>', text)
     
-    # 2. إزالة ** المزدوجة
+    # 3. إزالة ** المزدوجة
     text = text.replace('**', '')
     
-    # 3. إزالة " من النص لكن ليس من HTML attributes
+    # 4. إزالة " من النص لكن ليس من HTML attributes
     html_pattern = r'(<[^>]+>)'
     parts = re.split(html_pattern, text)
     
@@ -153,7 +173,7 @@ def clean_text_symbols(text):
         else:
             cleaned_part = part.replace('"', '').replace('"', '').replace('"', '')
             cleaned_parts.append(cleaned_part)
-    
+	
     return ''.join(cleaned_parts)
 
 def format_headings_style(html_content):
@@ -398,8 +418,9 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         تكون المقدمة فقرتين:
         - الفقرة الأولى: ثلاث أسطر بحد أقصى
         - الفقرة الثانية: ثلاث أسطر بحد أقصى
+		- المدى المسموح: فقرتين فقط ومن 2 إلى 3 أسطر (لا تزيد عن ذلك).
 
-        المحتوى: ابدأ بمشكلة (يشد اللي متألم فعلًا) أو  بحقيقة صادمة (تخض وتخلّي القارئ يكمل) أو بسؤال مباشر (يشغّل دماغه) أو بجملة قصيرة تقيلة (أسلوب صاعق) أو بمشهد أو قصة (يشد عاطفيًا) أو بكسر معتقد شائع أو... أي هدف حسب ما في رأيك ثم قدم الحل الذي في الموضوع.
+        المحتوى: ابدأ بمشكلة (يشد اللي متألم فعلًا) أو بحقيقة صادمة (تخض وتخلّي القارئ يكمل) أو بسؤال مباشر (يشغّل دماغه) أو بجملة قصيرة تقيلة (أسلوب صاعق) أو بمشهد أو قصة (يشد عاطفيًا) أو بكسر معتقد شائع أو... أي هدف حسب ما في رأيك ثم قدم الحل الذي في الموضوع.
 
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -454,7 +475,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ابدأ بمقدمة قصيرة تمهد للأسئلة والأجوبة (200 حرف)
         - كل إجابة لا تزيد عن سطرين
 		- كل اجابة تبرز قيمة مضافة لا يعرفها الجميع
-        - استخدم رمو ◀️ في الجواب
+        - استخدم رمز ◀️ أو ↩ في بداية الجواب
 
         ⛔ تحذير هام:
         - لا تكتب العنوان الرئيسي "{section_title}" مرة أخرى.
@@ -482,7 +503,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         اكتب فقرة مميزة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
         - بعنوان "خلاصة تجربة أو خبرة موقع تقنجي"
         - أسلوب شخصي دافئ (First-person perspective) سواء 'نصيحة من القلب' أو 'سر المهنة' أو 'رؤية تحليلية' أو 'تطبيق عملي' أو 'واقع السوق' أو 'تنبيه للمحترفين'  أو أي حاجة حسب الموضوع وكأنك تشارك القارئ تجربة شخصية حصرية
-        - في حدود من 2 إلي 4 أسطر
+        - المدى المسموح: من 1 إلى 3 أسطر (لا تزيد عن ذلك).
         - تبرز قيمة مضافة لا يعرفها الجميع
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
@@ -495,8 +516,8 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         
         اكتب مقارنة متوازنة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
         - تبدأ بمقدمة قصيرة تمهد للمقارنة المتوازنة (200 حرف)
-        - المميزات (أو ماذا تفعل) (نقاط)
-        - العيوب (أوماذا تتجنب) (نقاط)
+        - المميزات (أو ماذا تفعل) كاملة وشاملة (نقاط)
+        - العيوب (أوماذا تتجنب) كاملة وشاملة (نقاط)
         - اختم بملاحظة قصيرة (200 حرف) تلخص وجهة نظرك كخبير
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
@@ -534,10 +555,15 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         "text_paragraph": f"""
         {strict_instructions}
         
-        اكتب فقرة أو فقرات عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
-        - في حدود 1-3 فقرات
-        - كل فقرة 3 أسطر بحد أقصى
-        - مسافة بسيطة بين الفقرات
+        اكتب فقرة عن "{section_title}" موجهة لنية الباحث + كأن خبير بيتكلم احترافية وتشد القارئ لنهاية المقال وفضولية ومشوقة وجذابة ومتوافقة مع معايير السيو:
+        
+		🔴 تعليمات الطول الذكي (Smart Length):
+		- أنت الخبير، أنت من تقرر عدد الفقرات وطول أسطرها حدد الطول المناسب بناءً على أهمية ودسامة العنوان.
+        - إذا كان العنوان فرعياً بسيطاً، اكتب فقرة واحدة فقط أو فقرتين تحت بعض فقط تكون سطراً واحداً فقط أو سطرين فقط.
+        - إذا كان العنوان رئيسياً ودسماً، اكتب 3 فقرات تحت بعض فقط و3 أسطر كحد أقصى لكل فقرة.
+        - المدى المسموح: من 1 إلى 3 فقرات ومن 1 إلى 3 أسطر (لا تزيد عن ذلك).
+        - لا تحاول حشو الكلام، كن موجزاً ومفيداً.
+        - مسافة بسيطة بين الفقرات (إذا كانت فقرتين أو 3 فقرات).
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -556,7 +582,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - ملخص للمقال بالكامل
         - نقاط مركزة جداً
         - اجعل الأسلوب يبدو كأن خبيراً يتحدث لصديقه ليوفر عليه الوقت
-        - داخل <div>...</div> بخلفية #bb3b17 أو #faad2a أو ما بينهم
+        - داخل <div>...</div> بخلفية #F4CCCC أو #FFF2CC أو ألوان أخرى نفس الدرجة ما بينهم
 
         الشروط التقنية (مهمة جداً):
         1. يجب أن يكون المخرج النهائي داخل <div> ... </div>
@@ -599,20 +625,48 @@ def write_full_article(article_data):
     print(f"🏗️ Generating structure for: {title}")
     original_structure = generate_article_structure(title, keyword)
 
-    # --- التعديل: إعادة ترتيب الهيكل (محتوى -> أسئلة -> خاتمة) ---
-    body_sec = []
-    faq_sec = []
-    conc_sec = []
+    # --- 1. تنظيف الهيكل وتجميع الأسئلة التائهة ---
+    final_body = []
+    collected_questions = []
+    faq_section = None
+    conclusion_section = None
+    
+    question_starters = ('هل ', 'كيف ', 'ما ', 'لماذا ', 'متى ', 'أين ', 'كم ')
     
     for item in original_structure:
-        t = item['type'].lower()
-        ti = item['title'].lower()
-        if 'faq' in t or 'أسئلة' in ti: faq_sec.append(item)
-        elif 'conclusion' in t or 'خاتمة' in ti:
-            item['type'] = 'conclusion'; item['title'] = 'خاتمة'; conc_sec.append(item)
-        else: body_sec.append(item)
+        t_lower = item['type'].lower()
+        title_text = item['title'].strip()
         
-    structure = body_sec + faq_sec + conc_sec
+        # لو خاتمة، نركنها على جنب
+        if 'conclusion' in t_lower or 'خاتمة' in title_text:
+            item['type'] = 'conclusion'
+            item['title'] = 'خاتمة'
+            conclusion_section = item
+            continue
+            
+        # لو قسم الأسئلة الشائعة الرسمي
+        if 'faq' in t_lower or 'أسئلة' in title_text:
+            faq_section = item
+            continue
+            
+        # لو عنوان عادي بس صيغته سؤال (سؤال تائه)، ناخده معانا
+        if title_text.endswith('?') or title_text.startswith(question_starters):
+            collected_questions.append(title_text)
+        else:
+            # عنوان عادي جداً، يفضل في مكانه
+            final_body.append(item)
+
+    # لو مفيش قسم أسئلة، ننشئ واحد عشان نحط فيه الأسئلة التائهة
+    if not faq_section:
+        faq_section = {"level": "h2", "type": "faq", "title": "أسئلة شائعة تهمك"}
+    
+    # نخزن الأسئلة التائهة عشان نستخدمها واحنا بنكتب قسم الأسئلة
+    faq_section['extra_questions_from_structure'] = collected_questions
+    
+    # نعيد بناء الهيكل النهائي المرتب
+    structure = final_body + [faq_section]
+    if conclusion_section:
+        structure.append(conclusion_section)
 
     print(f"🔍 Generating synonyms for keyword: {keyword}")
     synonyms = get_synonyms(keyword)
@@ -690,8 +744,11 @@ def write_full_article(article_data):
              full_html += f"<h2>{title_text}</h2>\n"
              write_title = False
              
-             # محاولة جلب أسئلة حقيقية
-             real_questions = get_real_google_questions(keyword)
+             # نجمع كل العناوين الموجودة عشان منكررهاش
+             all_titles_in_article = [x['title'] for x in structure]
+             
+             # استدعاء الدالة مع تمرير العناوين
+             real_questions = get_real_google_questions(keyword, existing_titles=all_titles_in_article)
              
              # نجهز البرومبت الأساسي من القاموس (القديم القوي)
              base_prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
