@@ -460,6 +460,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
         - تبدأ بمقدمة قصيرة تمهد للجدول ومحتواه (200 حرف)
         - ثم الجدول كامل وشامل (يكون متجاوب مع الهواتف والكمبيوتر)
         - بدون CSS معقد
+		- مهم جدأ استخدم text-align: center في جميع الجدول
         - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {syns_str}
         - ⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
@@ -939,11 +940,29 @@ def write_full_article(article_data):
             # تطبيق البولد الذكي
             sum_content = make_keywords_bold(sum_content, keyword, synonyms, global_bold_tracker)
                 
-            # 3. الحقن (مكان الكود القديم الذي سألت عنه في نقطة 3)
-            if '<h2>' in full_html:
-                full_html = full_html.replace('<h2>', f'{sum_content}\n<br>\n<h2>', 1)
+            # حقن الخلاصة بدقة: بعد المقدمة (التي عادة ما تكون فقرتين بعد الميتا)
+            # المنطق: نبحث عن أول عنوان H2، ونضع الخلاصة قبله مباشرة.
+            # (لأن المقدمة تأتي دائماً قبل أول عنوان H2)
+            
+            first_h2_index = full_html.find('<h2>')
+            
+            if first_h2_index != -1:
+                # نفصل النص جزئين عند أول عنوان
+                before_h2 = full_html[:first_h2_index]
+                after_h2 = full_html[first_h2_index:]
+                
+                # نركبهم تاني مع حشر الخلاصة في النص
+                full_html = f"{before_h2}\n<br>\n{sum_content}\n<br>\n{after_h2}"
             else:
-                full_html = f"{sum_content}\n<br>\n{full_html}"
+                # خطة بديلة لو مفيش عناوين خالص (نادر): نحطه بعد رابع <br> (يعني بعد الفقرات الأولى)
+                # لأن النص بيبدأ بـ: سبيس -> ميتا -> سبيس -> مقدمة1 -> مقدمة2
+                parts = full_html.split('<br>', 4)
+                if len(parts) >= 4:
+                    parts.insert(4, f'\n{sum_content}\n') # بعد رابع فاصل
+                    full_html = '<br>'.join(parts)
+                else:
+                    # لو النص قصير جداً، نحطه في الآخر وخلاص
+                    full_html += f"\n<br>\n{sum_content}"
                 
             print("   ✅ Summary injected.")
             summary_success = True
