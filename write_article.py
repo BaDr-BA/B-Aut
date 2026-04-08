@@ -210,8 +210,8 @@ def get_gemini_model():
     genai.configure(api_key=CURRENT_KEY)
     
     models_list = [
-        'gemma-3-27b-it',
-        'gemma-3-12b-it',
+        'gemma-4-31b-it',
+        'gemma-4-26b-a4b-it',
     ]
     selected_model = random.choice(models_list)
     
