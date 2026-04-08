@@ -25,13 +25,8 @@ BLOG_CATEGORIES = ["أدوات AI", "شروحات AI", "ربح من AI", "برو
 # <--- التغيير الأول هنا: أعدنا القائمة بالنماذج الصحيحة
 # سيتم تجربتها بالترتيب من الأقوى للأسرع
 GEMINI_MODELS = [
-    'gemini-3-flash',    
-    'gemini-2.5-flash',    
-    'gemini-2.5-flash-lite',    
-    'gemini-2.5-flash-tts',    
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-flash-latest',
-    'gemini-pro',
+    'gemma-4-31b-it',    
+    'gemma-4-26b-a4b-it',    
 ]
 
 PLANS_DIRECTORY = "plans"
