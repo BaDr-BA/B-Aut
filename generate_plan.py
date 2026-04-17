@@ -4,7 +4,8 @@ import random
 import time
 from datetime import datetime
 from github import Github, Auth
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # --- الإعدادات الأساسية ---
 GEMINI_API_KEYS = [
@@ -122,15 +123,24 @@ def generate_plan_for_category(category, excluded_titles):
     if not GEMINI_API_KEYS:
         raise ValueError("No Gemini API keys found.")
     
-    genai.configure(api_key=random.choice(GEMINI_API_KEYS))
+    # إعداد العميل (Client) للمكتبة الجديدة
+    api_key = random.choice(GEMINI_API_KEYS)
+    client = genai.Client(api_key=api_key)
     prompt = get_content_plan_prompt(category, excluded_titles)
 
     # حلقة المرور على النماذج
     for model_name in GEMINI_MODELS:
         print(f"   - Attempting with model: {model_name}...")
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt, tools='google_search_retrieval')
+            # تعريف أداة البحث بالصيغة الجديدة
+            config = types.GenerateContentConfig(
+                tools=[{"google_search": {}}]
+            )
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config
+            )
             cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
             new_articles = json.loads(cleaned_response)
             if isinstance(new_articles, list):
