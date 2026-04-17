@@ -5,10 +5,10 @@ import time
 import re
 import logging
 from github import Github, Auth
-import google.generativeai as genai
+from google import genai
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google.genai import types
 from googletrans import Translator
 import typing_extensions as typing
 from googlesearch import search
@@ -41,12 +41,12 @@ REPO_NAME = "BaDr-BA/B-Aut"
 PLANS_DIR = "plans"
 
 # إعدادات الأمان لـ Gemini (لتقليل الحجب)
-SAFETY_SETTINGS = {
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-}
+SAFETY_SETTINGS = [
+    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+]
 
 def get_blogger_service():
     creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
@@ -124,7 +124,7 @@ def get_real_google_questions(keyword, existing_titles=[]):
 def create_permalink_gemini(keyword_arabic):
     """توليد رابط ثابت بالإنجليزية حصراً"""
     try:
-        model = get_gemini_model()
+        client, selected_model = get_gemini_client_and_model()
         # برومبت صارم للترجمة
         prompt = f"""
         Task: Create a professional, short, and SEO-friendly English slug for the Arabic keyword: "{keyword_arabic}".
@@ -138,7 +138,7 @@ def create_permalink_gemini(keyword_arabic):
         6. Remove all special characters.
         7. Output ONLY the slug (e.g. digital-marketing-tips).
         """
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=selected_model, contents=prompt)
         permalink = response.text.strip().lower()
         
         # تنظيف نهائي لأي حروف غير إنجليزية
@@ -192,7 +192,7 @@ def format_headings_style(html_content):
     pattern = r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)'
     return re.sub(pattern, replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
 
-def get_gemini_model():
+def get_gemini_client_and_model():
     """اختيار المفتاح المحدد أو عشوائي في حالة عدم التحديد"""
     global CURRENT_KEY
     
@@ -203,11 +203,7 @@ def get_gemini_model():
     if CURRENT_KEY is None:
         CURRENT_KEY = random.choice(GEMINI_API_KEYS)
     
-    # طباعة جزء من المفتاح للتأكد (أول 5 حروف)
-    key_hint = CURRENT_KEY[:5] + "..."
-    # print(f"🤖 Using API Key starting with: {key_hint}") # (اختياري للتجربة)
-    
-    genai.configure(api_key=CURRENT_KEY)
+    client = genai.Client(api_key=CURRENT_KEY)
     
     models_list = [
         'gemma-4-31b-it',
@@ -215,7 +211,7 @@ def get_gemini_model():
     ]
     selected_model = random.choice(models_list)
     
-    return genai.GenerativeModel(selected_model, safety_settings=SAFETY_SETTINGS)
+    return client, selected_model
 
 def generate_article_structure(title, keyword):
     """توليد هيكل المقال بناءً على تحليل المنافسين (المحاكى)"""
@@ -267,8 +263,9 @@ def generate_article_structure(title, keyword):
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            model = get_gemini_model() # تغيير الموديل مع كل محاولة
-            response = model.generate_content(prompt)
+            client, selected_model = get_gemini_client_and_model()
+            config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
+            response = client.models.generate_content(model=selected_model, contents=prompt, config=config)
             
             clean_text = clean_json_response(response.text)
             structure = json.loads(clean_text)
@@ -301,7 +298,7 @@ def get_synonyms(keyword):
     توليد مرادفات للكلمة المفتاحية تلقائياً باستخدام Gemini
     """
     try:
-        model = get_gemini_model()
+        client, selected_model = get_gemini_client_and_model()
         prompt = f"""
         أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية.
         
@@ -323,7 +320,7 @@ def get_synonyms(keyword):
         - JSON فقط بدون أي كلام
         - لا تستخدم markdown أو ```
         """
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=selected_model, contents=prompt)
         synonyms_text = clean_json_response(response.text)
         
         # محاولة تحويل النص لـ JSON
@@ -703,8 +700,9 @@ def write_full_article(article_data):
     global_bold_tracker = set()
 
     # 1. إعداد الجلسة الأولى
-    model = get_gemini_model()
-    chat = model.start_chat(history=[])
+    client, selected_model = get_gemini_client_and_model()
+    config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
+    chat = client.chats.create(model=selected_model, config=config)
 
     # --- السيستم برومبت الجديد (يتضمن الهدف) ---
     setup_prompt = f"""
@@ -832,8 +830,9 @@ def write_full_article(article_data):
                     # هنا بنغير المفتاح والكلام ده...
                     
                     # نبدأ شات جديد
-                    model = get_gemini_model()
-                    chat = model.start_chat(history=[]) 
+                    client, selected_model = get_gemini_client_and_model()
+                    config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
+                    chat = client.chats.create(model=selected_model, config=config)
                     
                     try: 
                         # 1. نبعت برومبت التهيئة الأساسي (عربي فصحى وغيره)
@@ -932,8 +931,9 @@ def write_full_article(article_data):
             sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
             sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
-            summary_model = get_gemini_model()
-            summary_chat = summary_model.start_chat(history=[])
+            sum_client, sum_selected_model = get_gemini_client_and_model()
+            sum_config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
+            summary_chat = sum_client.chats.create(model=sum_selected_model, config=sum_config)
             
             res = summary_chat.send_message(sum_prompt)
             sum_content = clean_text_symbols(res.text.replace("```html","").replace("```",""))
