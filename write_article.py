@@ -288,7 +288,14 @@ def generate_article_structure(title, keyword):
                 time.sleep(wait_time)
             else:
                 print(f"⚠️ Structure Error: {e}")
-                time.sleep(20)
+                # --- تعديل التبديل الذكي للمفتاح عند فشل الهيكل ---
+                global CURRENT_KEY
+                other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
+                if other_keys:
+                    CURRENT_KEY = random.choice(other_keys)
+                    print("🔄 Switched to a new API Key for structure retry.")
+                # ---------------------------------------------------
+                time.sleep(10)
 
     # إذا فشلت كل المحاولات، نرفع خطأ ليتم إيقاف العملية والحفاظ على الخطة
     raise Exception("❌ Failed to generate article structure after retries. Aborting to save plan.")
