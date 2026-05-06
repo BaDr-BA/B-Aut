@@ -139,39 +139,27 @@ Do NOT generate these titles again, or titles that are very similar to them:
 
 المطلوب:
 1- استخدام أداة البحث في جوجل (Google Search) للبحث عن مقالات المنافسين لهذه الكلمات اليوم.
-2- اقتراح (20) عنوان مقال بناءً على نتائج البحث الحالية والفعليّة (Real-time data) مستخرج من:
-اقتراحات جوجل التلقائية الحالية (تم البحث أيضًا عن).
-قسم "الناس أيضًا يسألون" (People Also Ask).
-قسم أسئلة أخرى.
-أحدث ما يبحث عنه الناس الآن في مجال {category}.
-أدوات تحليل الكلمات المفتاحية (مثل Google Keyword Planner، Ubersuggest، SEMrush، Ahrefs، Keywordtool.io، AnswerThePublic، Google Trends، واي ادوات اخري).
-
-3- كل عنوان يجب أن يكون قابل للبحث، احترافي وجذاب ومشوق للزائر لزيادة نسبة النقر إلى الظهور (CTR).
-
-4- قدم النتائج في جدول احترافي يحتوي على الأعمدة التالية:
+2- لكل كلمة مفتاحية حقيقية بالأعلى، اقتراح (20) عنوان مقال بناءً على نتائج البحث الحالية والفعليّة (Real-time data).
+3- كل عنوان يجب أن يكون قابل للبحث لزيادة نسبة النقر إلى الظهور (CTR عالي).
+4- كل عنوان يجب أن يكون بين 70 إلى 80 حرفًا.
+5- قدم النتائج في جدول احترافي يحتوي على الأعمدة التالية:
 عنوان المقال
 الكلمة المستهدفة
 وصف ميتا
 هدف المقال للزائر او للقارئ في حدود 20 كلمة
-نسبة المنافسة على الكلمة
-متوسط عدد عمليات البحث الشهرية
-سعر الكلمة المفتاحية (Cost Per Click)
+رقم مؤشر التريند
 
-5- كل عنوان يجب أن يكون بين 70 إلى 80 حرفًا.
-
-6- لكل عنوان، أنشئ وصفًا ميتا (Meta Description) يحتوي على الكلمة المفتاحية، يكون احترافي وفضولي ومشوقًا وجذابًا ويتراوح طوله بين 100 إلى 150 حرفًا.
+6- لكل عنوان، أنشئ وصفًا ميتا (Meta Description) يحتوي على الكلمة المفتاحية الحقيقية، يكون مهيأ للسيو الجديد ويتراوح طوله بين 100 إلى 150 حرفًا.
 
 {exclusion_prompt}
 
-CRITICAL FINAL INSTRUCTION: After creating the professional table based on REAL-TIME Search data, your final and ONLY output must be a valid JSON array of objects.
+CRITICAL FINAL INSTRUCTION: After creating the professional table based on data, your final and ONLY output must be a valid JSON array of objects.
 Convert the table you created into this JSON format. Each object in the array must have these exact English keys, corresponding to the table columns:
-- "title" (for a'enwan almaqal)
-- "keyword" (for alklimat almustahdafa)
-- "meta_description" (for wasf mita)
-- "goal" (for hadaf almaqal lilzayir)
-- "competition" (for nisbat almunafasa)
-- "search_volume" (for mutawasit eadad eamaliat albahth)
-- "cpc" (for saer alklimat almuftahia)
+- "title" (العنوان الاحترافي)
+- "keyword" (الكلمة المفتاحية الحقيقية المذكورة بالأعلى)
+- "meta_description" (وصف الميتا)
+- "goal" (هدف المقال في 20 كلمة)
+- "trend_score" (رقم مؤشر التريند كما أعطيته لك بالأعلى)
 
 Do not include any text, explanation, or markdown formatting like ```json before or after the JSON array itself.
 """
@@ -184,7 +172,12 @@ def generate_plan_for_category(category, excluded_titles):
     # إعداد العميل (Client) للمكتبة الجديدة
     api_key = random.choice(GEMINI_API_KEYS)
     client = genai.Client(api_key=api_key)
-    prompt = get_content_plan_prompt(category, excluded_titles)
+    # سحب البيانات الحقيقية أولاً قبل التحدث مع الذكاء الاصطناعي
+    verified_data = get_real_keywords_with_trends(category)
+    if not verified_data:
+        raise ValueError(f"لم يتم العثور على كلمات بتريند جيد لقسم {category}")
+        
+    prompt = get_content_plan_prompt(category, excluded_titles, verified_data)
 
     # حلقة المرور على النماذج
     for model_name in GEMINI_MODELS:
