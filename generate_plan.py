@@ -23,16 +23,21 @@ GITHUB_REPO_NAME = "BaDr-BA/B-Aut"
 
 BLOG_CATEGORIES = ["أدوات AI", "شروحات AI", "ربح من AI", "برومبتات AI", "أتمتة AI"]
 
-# <--- التغيير الأول هنا: أعدنا القائمة بالنماذج الصحيحة
 # سيتم تجربتها بالترتيب من الأقوى للأسرع
-GEMINI_MODELS = [
-    'gemma-4-31b-it',    
-    'gemma-4-26b-a4b-it',    
+GEMINI_MODELS =[
+    'models/gemini-3.1-pro-preview',
+    'models/deep-research-preview-04-2026',
+    'models/gemini-3-flash-preview',
+    'models/gemini-2.5-pro'
 ]
 
 PLANS_DIRECTORY = "plans"
 PUBLISHED_TITLES_FILE_PATH = "published_titles.txt"
 MINIMUM_ARTICLES_THRESHOLD = 10
+
+# --- إعدادات فلترة السيو (اتركها None لو أردت أن يكتب من دماغه بدون قيود) ---
+TARGET_MIN_SEARCH_VOLUME = 1000  # الحد الأدنى لعمليات البحث
+TARGET_MIN_CPC = None            # الحد الأدنى لسعر النقرة بالدولار
 
 # --- (الكود البرمجي) ---
 
@@ -57,9 +62,56 @@ def upload_or_update_github_file(repo, file_path, content, commit_message):
         repo.create_file(file_path, commit_message, content)
         print(f"✅ File created: {file_path}")
 
-def get_content_plan_prompt(category, excluded_titles):
+import urllib.request
+import urllib.parse
+from pytrends.request import TrendReq
+
+def get_real_keywords_with_trends(category):
     """
-    ينشئ البرومبت التفصيلي والاحترافي مع تعليمات التحويل إلى JSON.
+    1. تجلب اقتراحات جوجل الحقيقية بناءً على القسم.
+    2. تفحصها في جوجل تريندز.
+    3. ترجع فقط الكلمات التي مؤشر اهتمامها فوق المتوسط (أكبر من 40/100).
+    """
+    print(f"   [Data] Fetching real autocomplete suggestions for: {category}...")
+    real_keywords =[]
+    
+    # 1. جلب الاقتراحات الحقيقية من محرك بحث جوجل
+    try:
+        url = f"http://suggestqueries.google.com/complete/search?client=firefox&q={urllib.parse.quote(category)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = urllib.request.urlopen(req)
+        content = response.read().decode('utf-8')
+        suggestions = json.loads(content)[1]
+    except Exception as e:
+        print(f"   ⚠️ فشل جلب الاقتراحات: {e}")
+        suggestions = [category] # نستخدم اسم القسم كبديل
+
+    # 2. فحص الكلمات في جوجل تريندز
+    print(f"   [Data] Checking Trends interest for {len(suggestions)} keywords...")
+    try:
+        pytrend = TrendReq(hl='ar-EG', tz=360) # موجه للمنطقة العربية/مصر
+        valid_keywords =[]
+        
+        # نأخذ أول 5 اقتراحات لعدم حظر الـ IP من جوجل تريندز
+        for kw in suggestions[:5]: 
+            pytrend.build_payload(kw_list=[kw], timeframe='today 1-m') # تريند اخر شهر
+            interest_over_time_df = pytrend.interest_over_time()
+            
+            if not interest_over_time_df.empty:
+                # حساب متوسط الاهتمام في اخر شهر
+                avg_interest = interest_over_time_df[kw].mean()
+                if avg_interest >= 40: # شرطك: مؤشر الاهتمام يجب ألا يكون ضعيفاً
+                    valid_keywords.append({"keyword": kw, "trend_score": round(avg_interest, 1)})
+            time.sleep(2) # انتظار لتجنب الحظر
+            
+        return valid_keywords
+    except Exception as e:
+        print(f"   ⚠️ فشل الاتصال بجوجل تريندز: {e}")
+        return[{"keyword": kw, "trend_score": "N/A"} for kw in suggestions[:5]]
+
+def get_content_plan_prompt(category, excluded_titles, verified_data):
+    """
+    ينشئ البرومبت ويجبر الذكاء الاصطناعي على استخدام البيانات الحقيقية الممررة له فقط!
     """
     # حساب التاريخ الحالي (الشهر والسنة)
     current_date = datetime.now().strftime("%B %Y")
@@ -73,14 +125,20 @@ VERY IMPORTANT NOTE: I have already published articles with the following titles
 Do NOT generate these titles again, or titles that are very similar to them:
 - {titles_text}
 """
-    
+
+    # تحويل البيانات الحقيقية لنص ليقرأها النموذج
+    data_text = "\n".join([f"- Keyword: {item['keyword']} (Trend Score: {item['trend_score']}/100)" for item in verified_data])
+
     # <<< هنا وضعنا البرومبت الطويل الخاص بك بالكامل >>>
     return f"""
-بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة اخر الاحداث معاييرها وأحدث الأحداث (Trends of {current_date})، أريدك أن تنشئ لي خطة محتوى احترافية لقسم ({category}) في موقعي.
+بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة اخر الاحداث معاييرها وأحدث الأحداث (Trends of {current_date})،
+أريدك أن تنشئ لي خطة محتوى بناءً على هذه البيانات "الحقيقية" فقط، ممنوع اختراع أو تخمين أي أرقام بحث.
+
+الكلمات المفتاحية الحقيقية الموثقة ومؤشر التريند الخاص بها:
+{data_text}
 
 المطلوب:
-
-1- استخدام أداة البحث في جوجل (Google Search) للبحث عن أحدث التريندات الحقيقية لهذا الشهر ({current_date}).
+1- استخدام أداة البحث في جوجل (Google Search) للبحث عن مقالات المنافسين لهذه الكلمات اليوم.
 2- اقتراح (20) عنوان مقال بناءً على نتائج البحث الحالية والفعليّة (Real-time data) مستخرج من:
 اقتراحات جوجل التلقائية الحالية (تم البحث أيضًا عن).
 قسم "الناس أيضًا يسألون" (People Also Ask).
