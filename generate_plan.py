@@ -3,6 +3,9 @@ import json
 import random
 import time
 from datetime import datetime
+import urllib.request             # <-- لجلب اقتراحات جوجل
+import urllib.parse               # <-- لتحليل الروابط
+from pytrends.request import TrendReq  # <-- لجلب بيانات جوجل تريندز
 from github import Github, Auth
 from google import genai
 from google.genai import types
@@ -69,16 +72,15 @@ from pytrends.request import TrendReq
 def get_real_keywords_with_trends(category):
     """
     1. تجلب اقتراحات جوجل الحقيقية بناءً على القسم.
-    2. تفحصها في جوجل تريندز.
+    2. تفحصها في جوجل تريندز (عالمياً باللغة العربية).
     3. ترجع فقط الكلمات التي مؤشر اهتمامها فوق المتوسط (أكبر من 40/100).
     """
     print(f"   [Data] Fetching real autocomplete suggestions for: {category}...")
-    real_keywords =[]
     
     # 1. جلب الاقتراحات الحقيقية من محرك بحث جوجل
     try:
-        url = f"http://suggestqueries.google.com/complete/search?client=firefox&q={urllib.parse.quote(category)}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        url = f"http://suggestqueries.google.com/complete/search?client=firefox&q={urllib.parse.quote(category)}&hl=ar"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         response = urllib.request.urlopen(req)
         content = response.read().decode('utf-8')
         suggestions = json.loads(content)[1]
@@ -87,27 +89,29 @@ def get_real_keywords_with_trends(category):
         suggestions = [category] # نستخدم اسم القسم كبديل
 
     # 2. فحص الكلمات في جوجل تريندز
-    print(f"   [Data] Checking Trends interest for {len(suggestions)} keywords...")
+    print(f"   [Data] Checking Trends globally for up to 10 keywords...")
     try:
-        pytrend = TrendReq(hl='ar-EG', tz=360) # موجه للمنطقة العربية/مصر
+        # hl='ar' تعني الواجهة عربية، geo='' تعني العالم كله (Worldwide)
+        pytrend = TrendReq(hl='ar', tz=360) 
         valid_keywords =[]
         
-        # نأخذ أول 5 اقتراحات لعدم حظر الـ IP من جوجل تريندز
-        for kw in suggestions[:5]: 
-            pytrend.build_payload(kw_list=[kw], timeframe='today 1-m') # تريند اخر شهر
+        # نأخذ أول 10 اقتراحات لعدم حظر الـ IP من جوجل تريندز
+        for kw in suggestions[:10]: 
+            pytrend.build_payload(kw_list=[kw], timeframe='today 1-m', geo='') # تريند اخر شهر
             interest_over_time_df = pytrend.interest_over_time()
             
             if not interest_over_time_df.empty:
                 # حساب متوسط الاهتمام في اخر شهر
                 avg_interest = interest_over_time_df[kw].mean()
-                if avg_interest >= 40: # شرطك: مؤشر الاهتمام يجب ألا يكون ضعيفاً
+                if avg_interest >= 30: # شرطك: مؤشر الاهتمام يجب ألا يكون ضعيفاً
                     valid_keywords.append({"keyword": kw, "trend_score": round(avg_interest, 1)})
-            time.sleep(2) # انتظار لتجنب الحظر
+                    print(f"      - Valid Keyword: {kw} (Score: {round(avg_interest, 1)})")
+            time.sleep(10) # انتظار لتجنب الحظر
             
         return valid_keywords
     except Exception as e:
         print(f"   ⚠️ فشل الاتصال بجوجل تريندز: {e}")
-        return[{"keyword": kw, "trend_score": "N/A"} for kw in suggestions[:5]]
+        return[{"keyword": kw, "trend_score": "N/A"} for kw in suggestions[:10]]
 
 def get_content_plan_prompt(category, excluded_titles, verified_data):
     """
@@ -131,22 +135,23 @@ Do NOT generate these titles again, or titles that are very similar to them:
 
     # <<< هنا وضعنا البرومبت الطويل الخاص بك بالكامل >>>
     return f"""
-بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة اخر الاحداث معاييرها وأحدث الأحداث (Trends of {current_date})،
+بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة. هدفنا هو بناء "Topical Authority" (سيطرة موضعية) لموقعي لكي يتصدر عالمياً في البحث العربي.
+قمت أنا بسحب هذه الكلمات المفتاحية الحقيقية ومؤشرات نجاحها من جوجل تريندز عالمياً لشهر ({current_date}).
 أريدك أن تنشئ لي خطة محتوى بناءً على هذه البيانات "الحقيقية" فقط، ممنوع اختراع أو تخمين أي أرقام بحث.
 
 الكلمات المفتاحية الحقيقية الموثقة ومؤشر التريند الخاص بها:
 {data_text}
 
 المطلوب:
-1- استخدام أداة البحث في جوجل (Google Search) للبحث عن مقالات المنافسين لهذه الكلمات اليوم.
-2- لكل كلمة مفتاحية حقيقية بالأعلى، اقتراح (20) عنوان مقال بناءً على نتائج البحث الحالية والفعليّة (Real-time data).
+1- استخدم ميزة البحث في جوجل (Google Search) لديك الآن للتحقق من المنافسين وتطوير العناوين لهذه الكلمات اليوم.
+2- لكل كلمة مفتاحية حقيقية بالأعلى، أريدك أن تقترح (3 إلى 10) عناوين مقالات تغطي الكلمة من "زوايا مختلفة" بناءً على نتائج البحث الحالية والفعليّة (Real-time data).
 3- كل عنوان يجب أن يكون قابل للبحث لزيادة نسبة النقر إلى الظهور (CTR عالي).
 4- كل عنوان يجب أن يكون بين 70 إلى 80 حرفًا.
 5- قدم النتائج في جدول احترافي يحتوي على الأعمدة التالية:
 عنوان المقال
 الكلمة المستهدفة
 وصف ميتا
-هدف المقال للزائر او للقارئ في حدود 20 كلمة
+هدف المقال للزائر او للقارئ في حدود 30 كلمة
 رقم مؤشر التريند
 
 6- لكل عنوان، أنشئ وصفًا ميتا (Meta Description) يحتوي على الكلمة المفتاحية الحقيقية، يكون مهيأ للسيو الجديد ويتراوح طوله بين 100 إلى 150 حرفًا.
@@ -155,10 +160,10 @@ Do NOT generate these titles again, or titles that are very similar to them:
 
 CRITICAL FINAL INSTRUCTION: After creating the professional table based on data, your final and ONLY output must be a valid JSON array of objects.
 Convert the table you created into this JSON format. Each object in the array must have these exact English keys, corresponding to the table columns:
-- "title" (العنوان الاحترافي)
+- "title" (العنوان الاحترافي من زوايا مختلفة)
 - "keyword" (الكلمة المفتاحية الحقيقية المذكورة بالأعلى)
 - "meta_description" (وصف الميتا)
-- "goal" (هدف المقال في 20 كلمة)
+- "goal" (هدف المقال في 30 كلمة)
 - "trend_score" (رقم مؤشر التريند كما أعطيته لك بالأعلى)
 
 Do not include any text, explanation, or markdown formatting like ```json before or after the JSON array itself.
