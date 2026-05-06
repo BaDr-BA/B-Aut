@@ -28,10 +28,10 @@ BLOG_CATEGORIES = ["أدوات AI", "شروحات AI", "ربح من AI", "برو
 
 # سيتم تجربتها بالترتيب من الأقوى للأسرع
 GEMINI_MODELS =[
-    'models/gemini-3.1-pro-preview',
-    'models/deep-research-preview-04-2026',
-    'models/gemini-3-flash-preview',
-    'models/gemini-2.5-pro'
+    'gemini-2.5-pro',
+    'gemini-2.0-flash',     # ممتاز وسريع وكوتة مجانية كبيرة جداً
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-pro'        # احتياطي قوي جداً
 ]
 
 PLANS_DIRECTORY = "plans"
@@ -169,46 +169,53 @@ Convert the table you created into this JSON format. Each object in the array mu
 Do not include any text, explanation, or markdown formatting like ```json before or after the JSON array itself.
 """
 
-# <--- التغيير الثاني هنا: أعدنا حلقة المحاولة والتنقل بين النماذج مع تفعيل البحث
 def generate_plan_for_category(category, excluded_titles):
     if not GEMINI_API_KEYS:
         raise ValueError("No Gemini API keys found.")
     
-    # إعداد العميل (Client) للمكتبة الجديدة
-    api_key = random.choice(GEMINI_API_KEYS)
-    client = genai.Client(api_key=api_key)
-    # سحب البيانات الحقيقية أولاً قبل التحدث مع الذكاء الاصطناعي
+    # 1. جلب البيانات الحقيقية من جوجل أولاً
     verified_data = get_real_keywords_with_trends(category)
     if not verified_data:
-        raise ValueError(f"لم يتم العثور على كلمات بتريند جيد لقسم {category}")
+        raise ValueError(f"لم يتم العثور على كلمات لقسم {category}")
         
     prompt = get_content_plan_prompt(category, excluded_titles, verified_data)
 
-    # حلقة المرور على النماذج
-    for model_name in GEMINI_MODELS:
-        print(f"   - Attempting with model: {model_name}...")
-        try:
-            # تعريف أداة البحث بالصيغة الجديدة
-            config = types.GenerateContentConfig(
-                tools=[{"google_search": {}}]
-            )
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=config
-            )
-            cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
-            new_articles = json.loads(cleaned_response)
-            if isinstance(new_articles, list):
-                print(f"   🎉 Success! Generated {len(new_articles)} new articles with {model_name}.")
-                return new_articles # نجحنا، نرجع بالنتيجة ونخرج من الدالة
-        except Exception as e:
-            # إذا فشل، نطبع الخطأ وننتقل للنموذج التالي
-            print(f"   ❌ Failed with {model_name}. Reason: {e}")
-            time.sleep(2) # انتظار ثانيتين قبل المحاولة التالية
-    
-    # إذا فشلت كل النماذج في الحلقة
-    raise RuntimeError(f"All models failed to generate a plan for category: {category}")
+    # 2. المرور على مفاتيح API (Rotation) لحل مشكلة الـ Quota Exceeded
+    for api_key in GEMINI_API_KEYS:
+        print(f"\n   🔄 Trying API Key starting with: {api_key[:8]}...")
+        client = genai.Client(api_key=api_key)
+        
+        # 3. المرور على النماذج
+        for model_name in GEMINI_MODELS:
+            print(f"      - Attempting with model: {model_name}...")
+            try:
+                # نرسل الطلب العادي بدون أداة البحث (لأننا أرسلنا بيانات تريندز في البرومبت)
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+                
+                cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
+                new_articles = json.loads(cleaned_response)
+                
+                if isinstance(new_articles, list):
+                    print(f"      🎉 Success! Generated {len(new_articles)} new articles with {model_name}.")
+                    return new_articles
+                    
+            except Exception as e:
+                error_msg = str(e)
+                print(f"      ❌ Failed with {model_name}. Reason: {error_msg.split('Details:')[0][:150]}...") # طباعة جزء صغير من الخطأ لعدم زحمة الـ Log
+                
+                # إذا كان الخطأ يتعلق بالكوتا (429) ننتظر 5 ثوانِ قبل تجربة النموذج التالي
+                if "429" in error_msg or "Quota" in error_msg:
+                    print("      ⚠️ ضغط على السيرفر أو انتهاء كوتا.. ننتظر 5 ثوانٍ...")
+                    time.sleep(5)
+                # إذا ظهر خطأ 400 نتجاوز هذا النموذج تماماً
+                elif "400" in error_msg:
+                    pass 
+
+    # إذا فشلت كل المفاتيح وكل النماذج
+    raise RuntimeError(f"All keys and models failed to generate a plan for category: {category}")
 
 
 if __name__ == "__main__":
