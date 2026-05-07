@@ -66,7 +66,6 @@ def upload_or_update_github_file(repo, file_path, content, commit_message):
 
 import urllib.request
 import urllib.parse
-from pytrends.request import TrendReq
 
 def get_deep_google_suggestions(category):
     """
