@@ -35,7 +35,7 @@ GEMINI_MODELS =[
 
 PLANS_DIRECTORY = "plans"
 PUBLISHED_TITLES_FILE_PATH = "published_titles.txt"
-MINIMUM_ARTICLES_THRESHOLD = 10
+MINIMUM_ARTICLES_THRESHOLD = 17
 
 # --- إعدادات فلترة السيو (اتركها None لو أردت أن يكتب من دماغه بدون قيود) ---
 TARGET_MIN_SEARCH_VOLUME = 1000  # الحد الأدنى لعمليات البحث
