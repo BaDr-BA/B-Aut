@@ -245,7 +245,7 @@ def get_gemini_client_and_model():
     
     return client, selected_model
 
-def generate_article_structure(title, keyword):
+def generate_article_structure(title, keyword, search_intent="معلوماتية"):
     """توليد هيكل المقال بناءً على تحليل المنافسين الحقيقي (Skyscraper Technique)"""
     
     # 1. سحب هياكل المنافسين الحقيقية
@@ -259,6 +259,8 @@ def generate_article_structure(title, keyword):
     أنت خبير SEO محترف ومحلل محتوى بمستوى عالمي.
     مهمتك: كتابة مقال بعنوان "{title}" للكلمة المفتاحية "{keyword}".
     الهدف الأسمى: "تقنية ناطحة السحاب (Skyscraper Technique)".
+    نية الباحث (Search Intent) لهذا المقال هي: "{search_intent}".
+    بناءً على هذه النية، يجب أن تعكس العناوين ما يبحث عنه الزائر (مثلاً لو النية مقارنة، ضع جداول.. لو معلومة موجزة، ضع الإجابة بالخلاصة في البداية.. وهكذا).
     لقد قمت أنا بسحب العناوين الرئيسية والفرعية (H1, H2, H3, H4) لأفضل 5 مقالات تتصدر نتائج جوجل الآن.
     
     إليك هياكل المنافسين المتصدرين:
@@ -437,7 +439,7 @@ def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
             
     return text
 
-def get_content_prompt(section_type, section_title, keyword, synonyms_list=None):
+def get_content_prompt(section_type, section_title, keyword, synonyms_list=None, search_intent="معلوماتية"):
     """اختيار البرومبت المناسب مع مرادفات عشوائية"""
     
     # نرسل كل المرادفات المتاحة (أول 35 مثلاً لتجنب الطول الزائد في البرومبت)
@@ -447,8 +449,25 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     # تحويل القائمة لنص
     syns_str = ', '.join(current_synonyms) if current_synonyms else keyword
 
-    # إضافة تعليمات نهائية موحدة
-    strict_instructions = """
+    # --- الذكاء الاصطناعي لنية الباحث (Team of Writers) ---
+    intent_rule = ""
+    if "موجزة" in search_intent:
+        intent_rule = "النية (معلومة موجزة): القارئ مستعجل. أعطه الإجابة المباشرة فوراً والخلاصة بدون حشو أو مقدمات طويلة."
+    elif "مقارنة" in search_intent:
+        intent_rule = "النية (مقارنة): كن محايداً، ركز على الفروقات الجوهرية، المميزات والعيوب، وسهل على القارئ اتخاذ القرار."
+    elif "إجرائية" in search_intent or "أفعل" in search_intent:
+        intent_rule = "النية (إجرائية/تطبيقية): قدم خطوات عملية واضحة 1، 2، 3 قابلة للتطبيق فوراً."
+    elif "شرائية" in search_intent or "استقصائية" in search_intent:
+        intent_rule = "النية (شرائية): ركز على القيمة، الفوائد، وساعد القارئ في اتخاذ أفضل قرار شراء أو اشتراك بثقة."
+    elif "مجاني" in search_intent:
+        intent_rule = "النية (بحث مجاني): ركز جداً على الحلول المجانية وكيفية الوصول إليها وتوفير المال."
+    elif "مشكلات" in search_intent:
+        intent_rule = "النية (حل مشكلات): تحدث بنبرة الخبير المنقذ، اشرح سبب المشكلة، ثم أعطِ خطوات العلاج المباشرة."
+    else:
+        intent_rule = "النية (معلوماتية تفصيلية): تعمق في الشرح، قدم معلومات غزيرة ودقيقة، وثقف القارئ من الصفر حتى الاحتراف."
+
+    # إضافة تعليمات نهائية موحدة مع زرع النية
+    strict_instructions = f"""
     ⛔ تعليمات صارمة جداً:
     1. ممنوع كتابة أي مقدمات أو مقدمة ترحيبية (مثل: بالتأكيد، إليك الفقرة...، ...إلخ).
     2. ممنوع كتابة العناوين مرة أخرى.
@@ -456,6 +475,8 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None)
     4. ابدأ مباشرة بالمحتوى المطلوب.
     5. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين.
     6. اكتب بأسلوب بشري طبيعي ومباشر 100% وموجه لنية الباحث وهدفه 100%.
+    7. ممنوع الحشو ولا التكرار.
+    8. 🎯 السر الاحترافي لكتابة هذه الفقرة: {intent_rule}
     """
 
     prompts = {
@@ -679,9 +700,10 @@ def write_full_article(article_data):
 
     # 1. سحب الهدف من ملف الخطة
     article_goal = article_data.get('goal', f'تقديم دليل شامل ومفيد حول {keyword} يساعد القارئ على الفهم والتطبيق.')
+    search_intent = article_data.get('search_intent', 'معلوماتية')
 	
     print(f"🏗️ Generating structure for: {title}")
-    original_structure = generate_article_structure(title, keyword)
+    original_structure = generate_article_structure(title, keyword, search_intent)
 
     # --- 1. تنظيف الهيكل وتجميع الأسئلة التائهة ---
     final_body = []
@@ -760,14 +782,17 @@ def write_full_article(article_data):
     setup_prompt = f"""
 	أنت كاتب وخبير في صناعة المحتوي الكتابي المتوافق مع معايير السيو الجديدة وخبير متخصص في السيو الجديد.
     🎯 هدف المقال الرئيسي: "{article_goal}"
+    🧠 نية الباحث (Search Intent): "{search_intent}"
     قواعد الكتابة:
-    1. نفذ هذا الهدف في كل فقرة تكتبها.
-    2. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة والسلسة والممتعة
-    3. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
-    4. استخدم "{keyword}" ومرادفاتها طبيعياً
-    5. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
-    6. لا تكرر العناوين
-    7. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص نهائياً
+	1. تقمص شخصية الكاتب المناسبة لنية الباحث
+    2. نفذ هذا الهدف في كل فقرة تكتبها
+    3. اكتب أي إجابة في هذه المحادثة من البداية إلى النهاية بالعربية الفصحى البسيطة والسلسة والممتعة
+	4. اكتب بصيغة المتكلم (ضمائر المتكلم)
+    5. أسلوب بشري طبيعي جديد وحصري واحترافي ومميز
+    6. استخدم "{keyword}" ومرادفاتها طبيعياً
+    7. ابدأ الكتابة مباشرة بدون مقدمات أو عناوين إضافية
+    8. لا تكرر العناوين
+    9. لا تستخدم علامات ** أو علامات اقتباس مزدوجة "" في أي نص نهائياً
     
     مهم جداً: عندما أطلب منك كتابة محتوى، اكتبه مباشرة بدون أي مقدمات.
 	"""
@@ -803,7 +828,7 @@ def write_full_article(article_data):
              write_title = False
              
              # نجهز البرومبت الأساسي مباشرة بدون المكتبة القديمة
-             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
+             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent)
 				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
@@ -821,7 +846,7 @@ def write_full_article(article_data):
                 print(f"   🔍 Found info: {web_context[:1000]}...") # يطبع أول 1000 حرف فقط للتأكيد
         # -----------------------------
 
-        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
+        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent)
 
         # --- حقن المعلومات في البرومبت (بذكاء وحصرية) ---
         if web_context:
@@ -907,7 +932,7 @@ def write_full_article(article_data):
                 if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
                     print("   -> Injecting Motivation...")
                     try:
-                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms)
+                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms, search_intent)
                         res = chat.send_message(mot_prompt)
                         mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
                         # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
@@ -956,7 +981,7 @@ def write_full_article(article_data):
     
     while not summary_success and sum_retries < 3:
         try:
-            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms)
+            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent)
             sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
             sum_client, sum_selected_model = get_gemini_client_and_model()
