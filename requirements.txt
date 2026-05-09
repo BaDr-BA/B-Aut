@@ -7,4 +7,3 @@ google-auth
 googletrans==4.0.0-rc1
 typing_extensions
 googlesearch-python
-people_also_ask
