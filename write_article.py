@@ -13,7 +13,6 @@ from googletrans import Translator
 import typing_extensions as typing
 from googlesearch import search
 from datetime import datetime
-import people_also_ask
 
 # إعداد الـ Logging
 logging.basicConfig(
@@ -83,43 +82,6 @@ def search_google_info(query):
     except Exception as e:
         print(f"   ⚠️ Google Search failed: {e}")
     return ""
-
-def get_real_google_questions(keyword, existing_titles=[]):
-    """جلب أسئلة حقيقية مع استبعاد العناوين المكررة في المقال"""
-    try:
-        print(f"   ❓ Fetching real PAA questions for: {keyword}...")
-        
-        # نجلب أسئلة من المكتبة
-        raw_questions = []
-        try:
-            # نجلب حتى 25 سؤال
-            for q in people_also_ask.get_related_questions(keyword, 25):
-                raw_questions.append(q)
-        except: pass
-
-        # مرحلة الفلترة (عشان ميكررش عناوين موجودة في المقال)
-        final_questions = []
-        for q in raw_questions:
-            is_duplicate = False
-            for title in existing_titles:
-                # لو السؤال شبه عنوان موجود بنسبة كبيرة
-                if q.strip() in title.strip() or title.strip() in q.strip(): 
-                    is_duplicate = True
-                    break
-            
-            if not is_duplicate:
-                final_questions.append(q)
-        
-        # نختار عدد عشوائي من الأسئلة النظيفة
-        if final_questions:
-            # نختار من 5 لـ 25 (أو العدد المتاح لو أقل)
-            count = random.randint(5, min(len(final_questions), 25))
-            selected_qs = random.sample(final_questions, count)
-            return "\n".join([f"- {q}" for q in selected_qs])
-            
-    except Exception as e:
-        print(f"   ⚠️ PAA Error: {e}")
-    return ""
 	
 def create_permalink_gemini(keyword_arabic):
     """توليد رابط ثابت بالإنجليزية حصراً"""
@@ -151,7 +113,8 @@ def create_permalink_gemini(keyword_arabic):
 
 def clean_text_symbols(text):
     """
-    إزالة علامات الاقتباس والنجوم المزدوجة وكود keyword_strong المزعج
+    إزالة علامات الاقتباس، النجوم المزدوجة، كود القالب المزعج،
+    والتعامل الذكي مع علامات التعجب (!) للحفاظ على السيو.
     """
     # 1. إزالة الروابط <a> مع الاحتفاظ بالنص (نضعها في البداية لتنظيف النص الخام)
     text = re.sub(r'<a\s+[^>]*>(.*?)</a>', r'\1', text, flags=re.IGNORECASE)
@@ -165,16 +128,85 @@ def clean_text_symbols(text):
     # 4. إزالة " من النص لكن ليس من HTML attributes
     html_pattern = r'(<[^>]+>)'
     parts = re.split(html_pattern, text)
-    
     cleaned_parts = []
-    for i, part in enumerate(parts):
+	
+    for part in parts:
         if part.startswith('<') and part.endswith('>'):
             cleaned_parts.append(part)
         else:
-            cleaned_part = part.replace('"', '').replace('"', '').replace('"', '')
+            # إزالة علامات الاقتباس
+            cleaned_part = part.replace('"', '')
+            # إذا كان هناك علامة تعجب ملتصقة بكلمة بعدها، ضع مسافة (مثال: رائع!هذا -> رائع! هذا)
+            cleaned_part = re.sub(r'!([^\s<])', r'! \1', cleaned_part)
             cleaned_parts.append(cleaned_part)
-	
+            
     return ''.join(cleaned_parts)
+
+def get_competitors_structure(keyword):
+    """
+    سحب هياكل أفضل المنافسين من جوجل باستخدام Jina AI.
+    تسحب العناوين فقط (H1, H2, H3, H4) لتوفير الكوتا وتركيز التحليل.
+    تخطي السوشيال ميديا وحظر Jina AI
+    """
+    print(f"   🕵️‍♂️ Analyzing top competitors for: {keyword} via Jina AI...")
+    competitor_headers = ""
+    successful_scrapes = 0
+    
+    # القائمة السوداء للمواقع التي لا نريد تحليلها (ليست مقالات)
+    blacklist =['youtube.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com', 'pinterest.com', 'linkedin.com', 'amazon.', 'apple.com']
+    
+    try:
+        # نجلب 15 نتيجة لكي يكون لدينا احتياطي لو تم حظر بعضها
+        urls = list(search(keyword, num_results=15, sleep_interval=2, lang='ar'))
+        
+        for url in urls:
+            if successful_scrapes >= 5: # نكتفي بـ 5 هياكل ناجحة
+                break
+                
+            # تخطي المواقع المحظورة
+            if any(domain in url for domain in blacklist):
+                continue
+                
+            print(f"      - Scraping: {url[:60]}...")
+            jina_url = f"https://r.jina.ai/{url}"
+            req = urllib.request.Request(jina_url, headers={'User-Agent': 'Mozilla/5.0'})
+            
+            try:
+                # نضع مهلة 15 ثانية لكي لا يتعطل السكريبت لو كان موقع المنافس بطيئاً
+                response = urllib.request.urlopen(req, timeout=15)
+                markdown_content = response.read().decode('utf-8')
+                
+                # تخطي الأخطاء التي تعيدها Jina AI على هيئة JSON
+                if "SecurityCompromiseError" in markdown_content or "Too many requests" in markdown_content:
+                    print("      ⚠️ Jina AI blocked this site (DDoS protected). Skipping...")
+                    continue
+                    
+                headers_only =[]
+                for line in markdown_content.splitlines():
+                    line = line.strip()
+                    # نبحث عن العناوين من H1 إلى H4 فقط
+                    if line.startswith('#') and 0 < line.count('#') <= 4:
+                        # تنظيف شكل العنوان ليكون مقروءاً للذكاء الاصطناعي
+                        clean_header = line.replace('#', '').strip()
+                        headers_only.append(f"- {clean_header}")
+                
+                # إذا وجدنا عناوين في هذا الموقع، نضيفها للنتيجة ونزيد العداد
+                if headers_only:
+                    successful_scrapes += 1
+                    competitor_headers += f"\n--- هيكل المنافس رقم {successful_scrapes} ---\n"
+                    competitor_headers += "\n".join(headers_only) + "\n"
+                    print(f"      ✅ Success! Found {len(headers_only)} headers.")
+            
+            except Exception as e:
+                # إذا حدث أي خطأ (مثل 403 أو Timeout) نتجاهله بهدوء
+                print(f"      ⚠️ Failed to scrape (Ignored): {str(e)[:50]}")
+            
+            time.sleep(5) # استراحة بسيطة لتجنب حظر الـ IP الخاص بك
+            
+    except Exception as e:
+        print(f"   ⚠️ Competitor search failed: {e}")
+        
+    return competitor_headers
 
 def format_headings_style(html_content):
     """
@@ -205,32 +237,45 @@ def get_gemini_client_and_model():
     
     client = genai.Client(api_key=CURRENT_KEY)
     
-    models_list = [
-        'gemma-4-31b-it',
-        'gemma-4-26b-a4b-it',
+    models_list =[
+        'gemini-2.5-flash',
+        'gemma-4-31b-it'
     ]
     selected_model = random.choice(models_list)
     
     return client, selected_model
 
 def generate_article_structure(title, keyword):
-    """توليد هيكل المقال بناءً على تحليل المنافسين (المحاكى)"""
+    """توليد هيكل المقال بناءً على تحليل المنافسين الحقيقي (Skyscraper Technique)"""
     
+    # 1. سحب هياكل المنافسين الحقيقية
+    competitors_data = get_competitors_structure(keyword)
+    
+    # إذا لم نجد منافسين (لأي خطأ فني)، نضع رسالة بديلة
+    if not competitors_data:
+        competitors_data = "لم يتم العثور على هياكل للمنافسين. اعتمد على خبرتك الشاملة لإنشاء الهيكل الأفضل."
+
     prompt = f"""
-    أنت خبير SEO محترف ومحلل محتوى.
-    مهمتك: هي إجراء تحليل عميق لأفضل 10 مقالات تتصدر نتائج بحث جوجل للعنوان "{title}" والكلمة المفتاحية "{keyword}".
-	الهدف هو كشف كل الزوايا والنقاط التي لم تغطها هذه المقالات أو تناولتها بشكل سطحي.
+    أنت خبير SEO محترف ومحلل محتوى بمستوى عالمي.
+    مهمتك: كتابة مقال بعنوان "{title}" للكلمة المفتاحية "{keyword}".
+    الهدف الأسمى: "تقنية ناطحة السحاب (Skyscraper Technique)".
+    لقد قمت أنا بسحب العناوين الرئيسية والفرعية (H1, H2, H3, H4) لأفضل 5 مقالات تتصدر نتائج جوجل الآن.
+    
+    إليك هياكل المنافسين المتصدرين:
+    {competitors_data}
     
     المطلوب:
-	ليس كتابة تقرير، بل استنتاج "هيكل المقال المثالي" مباشرة بناءً على الفجوات التي وجدتها عند المنافسين.
-    قدم ترتيبًا منطقيًا للعناوين الرئيسية (H2) والعناوين الفرعية (H3) يضمن تغطية شاملة ومتسلسلة لجميع الجوانب، القديمة والجديدة. والمناسبة لمقال متوافق مع معايير SEO الجديدة ونية الباحث لتصدر نتائج البحث.
+    1. ادرس هياكل المنافسين بالأعلى بعناية.
+    2. استنتج "الفجوات" (ما الذي نسوا التحدث عنه؟ ما الزوايا التي تناولوها بسطحية؟).
+    3. صمم "هيكل مقال مثالي وأسطوري" يتفوق عليهم جميعاً. يجب أن يكون مقالك هو المرجع الأشمل في هذا الموضوع بحيث لا يحتاج الزائر لقراءة أي مقال آخر.
+    4. قدم ترتيبًا منطقيًا للعناوين الرئيسية والفرعية (H2, H3) يضمن تغطية شاملة ومتسلسلة لجميع الجوانب التي ذكرها المنافسون + الجوانب الجديدة التي استنتجتها أنت. لمقال متوافق مع معايير SEO الجديدة والهدف ونية الباحث لتصدر نتائج البحث.
     
     ⚠️ مهم جداً: تجنب تكرار نفس العنوان مرتين! كل عنوان يجب أن يكون فريداً ومختلفاً.
 
     قواعد الهيكل:
     1. يجب أن يغطي نقاط الضعف عند المنافسين.
     2. تسلسل منطقي.
-    3. العناوين يجب أن تكون جذابة وليست تقليدية.
+    3. العناوين يجب أن تكون حصرية وجديدة وليست تقليدية.
     4. تجنب تكرار العناوين.
 	
     بجانب كل عنوان، حدد:
@@ -288,7 +333,7 @@ def generate_article_structure(title, keyword):
                 time.sleep(wait_time)
             else:
                 print(f"⚠️ Structure Error: {e}")
-                # --- تعديل التبديل الذكي للمفتاح عند فشل الهيكل ---
+                # --- التبديل الذكي للمفتاح عند فشل الهيكل ---
                 global CURRENT_KEY
                 other_keys = [k for k in GEMINI_API_KEYS if k != CURRENT_KEY]
                 if other_keys:
@@ -753,36 +798,12 @@ def write_full_article(article_data):
         if sec_type == 'conclusion': write_title = False
         if sec_type == 'introduction' and ('مقدمة' in title_text or not title_text): write_title = False
 
-        # الأسئلة الشائعة عنوانها h2 والباقي h3 داخل المحتوى
         if sec_type == 'faq':
              full_html += f"<h2>{title_text}</h2>\n"
              write_title = False
              
-             # نجمع كل العناوين الموجودة عشان منكررهاش
-             all_titles_in_article = [x['title'] for x in structure]
-             
-             # استدعاء الدالة مع تمرير العناوين
-             real_questions = get_real_google_questions(keyword, existing_titles=all_titles_in_article)
-             
-             # نجهز البرومبت الأساسي من القاموس (القديم القوي)
-             base_prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
-             
-             if real_questions:
-                 # لو لقينا أسئلة حقيقية، نعدل البرومبت ليستخدمها
-                 prompt = f"""
-                 {base_prompt}
-                 
-                 🔥 إضافة هامة جداً:
-                 لقد جلبت لك أسئلة حقيقية يسألها الناس الآن في جوجل:
-                 {real_questions}
-                 
-                 المطلوب: ادمج هذه الأسئلة الحقيقية ضمن إجاباتك أو استبدل الأسئلة الافتراضية بها لتكون الفائدة قصوى.
-                 """
-                 print(f"   ✅ Using {len(real_questions.splitlines())} REAL questions.")
-             else:
-                 # لو مفيش أسئلة حقيقية، نستخدم البرومبت القديم زي ما هو
-                 prompt = base_prompt
-                 print("   ⚠️ No real questions found. Using default prompt.")
+             # نجهز البرومبت الأساسي مباشرة بدون المكتبة القديمة
+             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms)
 				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
