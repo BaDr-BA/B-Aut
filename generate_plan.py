@@ -208,15 +208,111 @@ def generate_plan_for_category(category, excluded_titles):
 
     raise RuntimeError(f"All keys and models failed to generate a plan for category: {category}")
 
+def process_manual_keywords(repo):
+    """
+    تقرأ الكلمات من ملف manual_keywords.txt
+    تولد لكل كلمة خطة وتحدد قسمها، وتضعها في صدارة (أول) ملف الـ JSON الخاص بالقسم.
+    """
+    manual_file_path = "manual_keywords.txt"
+    try:
+        manual_content = get_file_content(repo, manual_file_path)
+        if not manual_content or not manual_content.strip():
+            return # الملف فارغ، لا تفعل شيئاً
+            
+        keywords =[kw.strip() for kw in manual_content.splitlines() if kw.strip()]
+        if not keywords: return
+        
+        print(f"\n🌟 [VIP] Found {len(keywords)} manual keywords. Processing now...")
+        
+        # اختيار مفتاح للعمل
+        api_key = random.choice(GEMINI_API_KEYS)
+        client = genai.Client(api_key=api_key)
+        model_name = GEMINI_MODELS[0] # نستخدم أقوى نموذج
+
+        current_year = datetime.now().strftime("%Y") # استخراج السنة الحالية
+        
+        for keyword in keywords:
+            print(f"   -> Processing VIP Keyword: {keyword}")
+            prompt = f"""
+            بصفتك خبيرًا في تحسين محركات البحث (SEO) وصناعة المحتوى الكتابي المتوافق مع معايير جوجل الجديدة. لدي هذه الكلمة المفتاحية التي أريد الكتابة عنها فوراً: "{keyword}"
+            
+            الأقسام المتاحة في موقعي هي: {BLOG_CATEGORIES}
+            
+            المطلوب منك:
+            1. 🔴 تحذير زمني صارم: نحن نعيش في عام {current_year}. يُمنع منعاً باتاً كتابة سنوات ماضية في العناوين أو الوصف. إذا استدعى العنوان وجود تاريخ، يجب أن يكون {current_year} حصراً، أو اجعل العنوان بدون تاريخ.
+            2. حدد "القسم الأنسب" لهذه الكلمة من الأقسام المذكورة بالأعلى فقط بالحرف.
+            3. العنوان يجب أن يكون قابل للبحث لزيادة نسبة النقر إلى الظهور (CTR عالي).
+            4. العنوان يجب أن يكون بين 70 إلى 80 حرفًا.
+            5. اكتب وصف ميتا تشويقي (100-150 حرف).
+            6. اكتب هدف المقال للزائر او للقارئ في حدود 30 كلمة
+            7. حدد "نية الباحث" (Search Intent) بدقة شديدة للعنوان من ضمن هذه القائمة فقط (اختر نية واحدة أو نيتين كحد أقصى تناسب العنوان):[معلوماتية, ملاحية, استقصائية, شرائية, محلية, معلومة موجزة, وسائط, بحث مجاني, إجرائية, مختلطة, حداثة/تريند, حل مشكلات, ترفيهية, أريد أن أفعل, أريد أن أذهب, موسمية, مقارنة, ضمنية]
+            
+            CRITICAL FINAL INSTRUCTION:
+            أخرج النتيجة بصيغة JSON Object واحد فقط (وليس Array). استخدم هذه المفاتيح:
+            "category", "title", "keyword", "meta_description", "goal", "search_intent"
+            
+            Do not include any text, explanation, or markdown formatting like ```json before or after the JSON itself.
+            """
+            
+            try:
+                response = client.models.generate_content(model=model_name, contents=prompt)
+                cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
+                vip_article = json.loads(cleaned_response)
+                
+                # استخراج القسم والتأكد منه
+                target_category = vip_article.get("category", "")
+                if target_category not in BLOG_CATEGORIES:
+                    target_category = BLOG_CATEGORIES[0] # لو اخترع قسم غريب، حطه في أول قسم كأمان
+                    
+                # إزالة مفتاح category لأنه لا يُحفظ داخل الخطة، الخطة نفسها باسم القسم
+                del vip_article["category"]
+                
+                # جلب ملف الخطة الخاص بهذا القسم
+                plan_path = f"{PLANS_DIRECTORY}/content_plan_{target_category}.json"
+                existing_articles =[]
+                content = get_file_content(repo, plan_path)
+                if content:
+                    try: existing_articles = json.loads(content)
+                    except: existing_articles =[]
+                
+                # إدراج المقال الـ VIP في "المرتبة الأولى" (رقم 0) لكي يكتبه سكريبت الكتابة فوراً
+                existing_articles.insert(0, vip_article)
+                
+                # تحويل الخطة المحدثة إلى نص JSON
+                updated_plan_json = json.dumps(existing_articles, indent=2, ensure_ascii=False)
+                
+                # رفع وتحديث الملف على جيت هاب
+                upload_or_update_github_file(repo, plan_path, updated_plan_json, f"🚀 Add VIP Keyword: {keyword}")
+                print(f"   ✅ VIP Keyword '{keyword}' added to '{target_category}' plan at index 0!")
+                
+                time.sleep(10) # استراحة قصيرة لتجنب ضغط الـ API
+                
+            except Exception as e:
+                print(f"   ⚠️ Failed to process VIP keyword '{keyword}': {e}")
+                
+        # الخطوة الأخيرة: مسح محتوى ملف manual_keywords.txt لكي لا يتم توليد نفس الكلمات غداً!
+        try:
+            manual_file = repo.get_contents(manual_file_path)
+            repo.update_file(manual_file.path, "🧹 Clear processed VIP keywords", "", manual_file.sha)
+            print("   🧹 Cleared manual_keywords.txt successfully.")
+        except Exception as e:
+            print(f"   ⚠️ Could not clear manual_keywords.txt: {e}")
+
+    except Exception as e:
+        print(f"   ⚠️ VIP processing overall error: {e}")
 
 if __name__ == "__main__":
     try:
         print("🚀 Starting content plan check...")
         repo = get_github_repo()
         
+        # 🔴 تشغيل نظام الكلمات الـ VIP أولاً
+        process_manual_keywords(repo)
+        
         published_content = get_file_content(repo, PUBLISHED_TITLES_FILE_PATH)
         published_titles = published_content.splitlines() if published_content else []
 
+        # دورة العمل الروتينية لفحص الأقسام
         for category in BLOG_CATEGORIES:
             print(f"\n🔎 Checking category: '{category}'...")
             plan_path = f"{PLANS_DIRECTORY}/content_plan_{category}.json"
