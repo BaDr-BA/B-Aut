@@ -439,7 +439,7 @@ def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
             
     return text
 
-def get_content_prompt(section_type, section_title, keyword, synonyms_list=None, search_intent="معلوماتية"):
+def get_content_prompt(section_type, section_title, keyword, synonyms_list=None, search_intent="معلوماتية", article_goal=""):
     """اختيار البرومبت المناسب مع مرادفات عشوائية"""
     
     # نرسل كل المرادفات المتاحة (أول 35 مثلاً لتجنب الطول الزائد في البرومبت)
@@ -499,7 +499,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     if not intent_rule:
         intent_rule = "النية (معلوماتية شاملة): قدم دليلاً شاملاً، غنياً بالمعلومات القيمة التي تجعل من مقالك المرجع الأول والنهائي للزائر."
 
-    # حقن النية المجمعة في التعليمات الصارمة
+    # حقن النية والهدف معاً في التعليمات الصارمة
     strict_instructions = f"""
     ⛔ تعليمات صارمة جداً:
     1. ممنوع كتابة أي مقدمات أو مقدمة ترحيبية (مثل: بالتأكيد، إليك الفقرة...، ...إلخ).
@@ -509,7 +509,8 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     5. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين.
     6. اكتب بأسلوب بشري طبيعي ومباشر 100% وموجه لنية الباحث وهدفه 100%.
     7. ممنوع الحشو ولا التكرار.
-    8. 🎯 أسرار احترافية لكتابة هذه الفقرة (أدمج هذا التوجيه أو هذه التوجيهات معاً): {intent_rule}
+	8. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
+    9. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
     """
 
     prompts = {
@@ -750,9 +751,10 @@ def write_full_article(article_data):
     keyword = article_data['keyword']
     meta_description = article_data.get('meta_description', '')
 
-    # 1. سحب الهدف من ملف الخطة
+    # 1. سحب الهدف والنية من ملف الخطة مع طباعة اللوج
     article_goal = article_data.get('goal', f'تقديم دليل شامل ومفيد حول {keyword} يساعد القارئ على الفهم والتطبيق.')
-    # 1. سحب النية، وإذا لم تكن موجودة نتركها فارغة ليتم تحليلها
+    print(f"   🎯 تم التقاط هدف المقال: {article_goal}")
+	
     search_intent = article_data.get('search_intent', "")
     if isinstance(search_intent, list):
         search_intent = " ".join(search_intent)
@@ -765,6 +767,8 @@ def write_full_article(article_data):
         print(f"   ⚠️ النية غير موجودة أو غير معروفة في الخطة. جاري تحليل النية ديناميكياً...")
         search_intent = analyze_intent_dynamically(title, keyword)
         print(f"   🧠 النية المستنتجة آلياً: {search_intent}")
+    else:
+        print(f"   🧠 تم التقاط نية الباحث من الخطة: {search_intent}")
 	
     print(f"🏗️ Generating structure for: {title}")
     original_structure = generate_article_structure(title, keyword, search_intent)
@@ -892,7 +896,7 @@ def write_full_article(article_data):
              write_title = False
              
              # نجهز البرومبت الأساسي مباشرة بدون المكتبة القديمة
-             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent)
+             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal)
 				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
@@ -910,7 +914,7 @@ def write_full_article(article_data):
                 print(f"   🔍 Found info: {web_context[:1000]}...") # يطبع أول 1000 حرف فقط للتأكيد
         # -----------------------------
 
-        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent)
+        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal)
 
         # --- حقن المعلومات في البرومبت (بذكاء وحصرية) ---
         if web_context:
@@ -996,7 +1000,7 @@ def write_full_article(article_data):
                 if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
                     print("   -> Injecting Motivation...")
                     try:
-                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms, search_intent)
+                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms, search_intent, article_goal)
                         res = chat.send_message(mot_prompt)
                         mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
                         # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
@@ -1045,7 +1049,7 @@ def write_full_article(article_data):
     
     while not summary_success and sum_retries < 3:
         try:
-            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent)
+            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent, article_goal)
             sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
             sum_client, sum_selected_model = get_gemini_client_and_model()
