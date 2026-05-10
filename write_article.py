@@ -959,11 +959,19 @@ def write_full_article(article_data):
                         # 1. نبعت برومبت التهيئة الأساسي (عربي فصحى وغيره)
                         chat.send_message(setup_prompt)
                         
-                        # 2. (الجزء الجديد) لو إحنا في قسم فرعي H3، نفكره إحنا تبع مين
+                        # 2. تذكير الموظف الجديد (جيميناي) بموقعه في المقال
+                        print(f"   🧠 Reminding Gemini of context for: {title_text}")
                         if level == 'h3' and current_h2_context:
-                            print(f"   🧠 Reminding Gemini of context: {current_h2_context}")
-                            reminder = f"نحن الآن نكتب فقرة فرعية بعنوان '{title_text}' تابعة للقسم الرئيسي '{current_h2_context}'. أكمل الكتابة بناءً على هذا السياق."
-                            chat.send_message(reminder)
+                            reminder = f"تذكير بالسياق: نحن نكتب الآن مقالاً بعنوان '{title}'. وصلنا تحديداً لكتابة فقرة فرعية بعنوان '{title_text}' تابعة للقسم الرئيسي '{current_h2_context}'. أكمل الكتابة بناءً على هذا السياق."
+                        elif sec_type == 'conclusion':
+                            reminder = f"تذكير بالسياق: نحن نكتب مقالاً بعنوان '{title}'. وصلنا الآن لكتابة 'الخاتمة' الشاملة للمقال. أكمل الكتابة."
+                        elif sec_type == 'faq':
+                            reminder = f"تذكير بالسياق: نحن نكتب مقالاً بعنوان '{title}'. وصلنا الآن لكتابة قسم 'الأسئلة الشائعة'. أكمل الكتابة."
+                        else:
+                            # للـ H2 أو أي فقرة رئيسية أخرى
+                            reminder = f"تذكير بالسياق: نحن نكتب الآن مقالاً بعنوان '{title}'. وصلنا تحديداً لكتابة قسم رئيسي بعنوان '{title_text}'. أكمل الكتابة."
+                            
+                        chat.send_message(reminder)
                             
                     except: pass
 
