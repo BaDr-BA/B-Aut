@@ -1064,7 +1064,8 @@ def write_full_article(article_data):
         # إضافة العناوين HTML (إلا لو كانت خاتمة أو مقدمة بدون عنوان صريح)
         write_title = True
         if sec_type == 'conclusion': write_title = False
-        if sec_type == 'introduction' and ('مقدمة' in title_text or not title_text): write_title = False
+        # إخفاء عنوان المقدمة فقط إذا كان فارغاً أو كلمة "مقدمة" مجردة، أما لو كان عنواناً جذاباً فأظهره كـ h2
+        if sec_type == 'introduction' and (not title_text or title_text.strip() == 'مقدمة'): write_title = False
 
         if sec_type == 'faq':
              full_html += f"<h2>{title_text}</h2>\n"
