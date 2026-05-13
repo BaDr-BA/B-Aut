@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
 
 # --- الإعدادات والمفاتيح ---
-GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 7) if os.environ.get(f"GEMINI_API_KEY_{i}")]
+GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 1000) if os.environ.get(f"GEMINI_API_KEY_{i}")]
 CURRENT_KEY = None # نخزن فيه المفتاح المختار لهذه الجلسة
 CLIENT_ID = os.environ.get("BLOGGER_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("BLOGGER_CLIENT_SECRET")
@@ -55,6 +55,176 @@ def clean_json_response(text):
     """تنظيف رد Gemini لاستخراج JSON صالح"""
     text = text.replace("```json", "").replace("```", "").strip()
     return text
+
+def rotate_api_key(repo):
+    """تدوير مفتاح API لتوزيع الحمل، وتحديث ملف last_key_index.txt"""
+    global CURRENT_KEY
+    try:
+        last_key_index = -1
+        try:
+            key_file = repo.get_contents("last_key_index.txt")
+            last_key_index = int(key_file.decoded_content.decode("utf-8").strip())
+        except:
+            pass
+
+        all_indices = list(range(len(GEMINI_API_KEYS)))
+        valid_indices = [i for i in all_indices if i != last_key_index]
+        if not valid_indices: valid_indices = all_indices
+
+        new_index = random.choice(valid_indices)
+        CURRENT_KEY = GEMINI_API_KEYS[new_index]
+        
+        print(f"   🔄 [Rotation] Switched to new API Key Index: {new_index}")
+
+        if not TEST_MODE:
+            try:
+                if last_key_index == -1:
+                    repo.create_file("last_key_index.txt", "Init key history", str(new_index))
+                else:
+                    repo.update_file(key_file.path, "Update key rotation", str(new_index), key_file.sha)
+            except Exception as e:
+                pass
+    except Exception as e:
+        print(f"   ⚠️ Key rotation failed: {e}")
+        CURRENT_KEY = random.choice(GEMINI_API_KEYS)
+
+def get_published_posts_for_linking(service):
+    """سحب جميع المقالات المنشورة من بلوجر (مهما كان عددها) وتحويلها لروابط نسبية"""
+    print("   🌐 Fetching ALL published posts from Blogger for Internal Linking...")
+    links_data =[]
+    next_page_token = None
+    
+    try:
+        while True:
+            # maxResults=500 هو أقصى حد يسمح به بلوجر للطلب الواحد
+            request = service.posts().list(blogId=BLOG_ID, status='LIVE', maxResults=500, fetchImages=False, pageToken=next_page_token)
+            response = request.execute()
+            
+            if 'items' in response:
+                for post in response['items']:
+                    title = post.get('title', '')
+                    full_url = post.get('url', '')
+                    
+                    if title and full_url:
+                        # تحويل الرابط الكامل لنسبي
+                        relative_url = re.sub(r'^https?://[^/]+', '', full_url)
+                        links_data.append({"title": title, "url": relative_url})
+                        
+            # التحقق مما إذا كان هناك صفحات أخرى من المقالات
+            next_page_token = response.get('nextPageToken')
+            if not next_page_token:
+                break # لا يوجد مقالات أخرى، نخرج من الحلقة
+                
+        print(f"      ✅ Found {len(links_data)} total posts for linking.")
+    except Exception as e:
+        print(f"      ⚠️ Failed to fetch posts from Blogger: {e}")
+        
+    return links_data
+
+def apply_smart_internal_linking(html_content, repo, blogger_service):
+    """
+    محرك الربط الداخلي الذكي (نسخة الدوران الشامل على كل النماذج والمفاتيح):
+    """
+    # 1. سحب المقالات
+    available_links = get_published_posts_for_linking(blogger_service)
+    if not available_links:
+        return html_content # لا يوجد مقالات للربط
+        
+    # تجريد المقال من الـ HTML وأخذ النص كاملاً (بدون قص)
+    clean_text = re.sub(r'<[^>]+>', ' ', html_content)
+    clean_text = " ".join(clean_text.split())
+    
+    links_json_str = json.dumps(available_links, ensure_ascii=False)
+
+    prompt = f"""
+    بصفتك خبيراً في كتابة المحتوى المتوافق مع معايير السيو الجديد (SEO) وتجربة المستخدم (UX).
+    
+    هذا هو نص مقالي الجديد (بالكامل):
+    "{clean_text}"
+    
+    وهذه قائمة بمقالاتي القديمة (العنوان والرابط النسبي):
+    {links_json_str}
+    
+    المطلوب منك عمل "ربط داخلي" (Internal Linking) احترافي.
+    
+    القواعد الصارمة:
+    1. الروابط السياقية فقط: لا تضف كلمات لمجرد الحشو. استخرج جملة أو كلمة (موجودة فعلاً في نص مقالي الجديد) بشرط أن تكون مرتبطة تماماً بموضوع أحد مقالاتي القديمة.
+    2. الانسيابية: أريد أن يشعر القارئ أن الرابط جزء لا يتجزأ من المعلومة، وليس مقحماً عليها.
+    3. استخرج من (2 إلى 10) روابط كحد أقصى، وقم بتوزيعها على طول المقال (لا تركزها في فقرة واحدة).
+    4. لا تعد كتابة المقال
+    
+    أخرج النتيجة بصيغة JSON Array فقط، تحتوي على الكلمة الموجودة في النص، والرابط المخصص لها:
+    [
+      {{"exact_word": "الكلمة أو الجملة الموجودة بالنص", "url": "/2026/05/example.html"}}
+    ]
+    رد بـ JSON فقط بدون أي نصوص إضافية.
+    """
+
+    links_to_inject =[]
+    success = False
+
+    # الدوران الشامل: حلقة للموديلات، وبداخلها حلقة للمفاتيح
+    for model_name in GEMINI_MODELS:
+        if success: break # لو نجحنا نخرج من حلقة الموديلات
+        print(f"\n   ⚙️ Trying Model: {model_name} for Internal Linking...")
+        
+        for api_key in GEMINI_API_KEYS:
+            print(f"      🔄 Testing API Key starting with: {api_key[:8]}...")
+            try:
+                client = genai.Client(api_key=api_key)
+                response = client.models.generate_content(model=model_name, contents=prompt)
+                
+                links_to_inject = json.loads(clean_json_response(response.text))
+                print(f"      ✅ Success! {model_name} with this key suggested {len(links_to_inject)} links.")
+                
+                # تحديث المفتاح الحالي في السكريبت لكي يُسجل في التاريخ
+                global CURRENT_KEY
+                CURRENT_KEY = api_key
+                
+                success = True
+                break # نجحنا! نخرج من حلقة المفاتيح
+                
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "429" in error_msg or "quota" in error_msg:
+                    print(f"      ⚠️ Quota hit on this key. Moving to the next key...")
+                else:
+                    print(f"      ⚠️ Error: {error_msg[:100]}. Moving to the next key...")
+                time.sleep(3) # استراحة قصيرة قبل تجربة المفتاح التالي
+
+    # زراعة الروابط إذا نجحنا
+    if success and links_to_inject:
+        parts = re.split(r'(<[^>]+>)', html_content)
+        
+        for link_obj in links_to_inject:
+            exact_word = link_obj.get("exact_word", "").strip()
+            url = link_obj.get("url", "").strip()
+            
+            if not exact_word or not url or len(exact_word) < 4: continue
+            
+            in_heading = False
+            in_link = False
+            word_injected = False
+            
+            for i, part in enumerate(parts):
+                if word_injected: break
+                
+                if part.startswith('<h') and not part.startswith('</'): in_heading = True
+                elif part.startswith('</h'): in_heading = False
+                elif part.startswith('<a'): in_link = True
+                elif part.startswith('</a'): in_link = False
+                
+                if not part.startswith('<') and not in_heading and not in_link:
+                    if exact_word in part:
+                        replacement = f'<a href="{url}">{exact_word}</a>'
+                        parts[i] = part.replace(exact_word, replacement, 1)
+                        word_injected = True
+                        print(f"      🔗 Injected link on: '{exact_word}'")
+                        
+        return ''.join(parts)
+    else:
+        print("   ❌ All models and all keys failed to generate internal links. Proceeding without them.")
+        return html_content # نرجع المقال بدون روابط لو فشلت كل المحاولات
 
 def search_google_info(query):
     """البحث في جوجل بالمحتوى الأجنبي الحديث وتلقائياً بالتاريخ الحالي"""
@@ -283,7 +453,7 @@ def generate_article_structure(title, keyword, search_intent="معلوماتية
 	6. استخدم علامات الترقيم الصحيحة إذا لزم الأمر مثل النقطتين الرأسيتين (:)، وعلامات الاستفهام (؟).
 	
     بجانب كل عنوان، حدد:
-    - level: إما "h2" أو "h3" أو "intro" (للمقدمة فقط في البداية)
+    - level: إما "h2" أو "h3" أو "h4" أو "intro" (للمقدمة فقط في البداية)
     - type: نوع المحتوى من هذه القائمة حصراً: [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, featured_paragraph, pros_cons, emoji_check_list]
     - title: نص العنوان (يجب أن يكون فريداً)
 
@@ -906,6 +1076,7 @@ def write_full_article(article_data):
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
             elif level == 'h3': full_html += f"<h3>{title_text}</h3>\n"
+            elif level == 'h4': full_html += f"<h4>{title_text}</h4>\n"
         
         # تجهيز البرومبت
         # --- بداية كود البحث المضاف ---
@@ -1131,44 +1302,8 @@ def main():
         g = Github(auth=auth)
         repo = g.get_repo(REPO_NAME)
 
-        # --- بداية كود تدوير المفاتيح الذكي ---
-        global CURRENT_KEY
-        try:
-            # 1. محاولة قراءة رقم آخر مفتاح تم استخدامه
-            last_key_index = -1
-            try:
-                key_file = repo.get_contents("last_key_index.txt")
-                last_key_index = int(key_file.decoded_content.decode("utf-8").strip())
-                logger.info(f"🔄 Last used key index was: {last_key_index}")
-            except:
-                logger.info("ℹ️ No usage history found. Starting fresh.")
-
-            # 2. تحديد المؤشرات المتاحة (0, 1, 2...)
-            all_indices = list(range(len(GEMINI_API_KEYS)))
-            
-            # 3. استبعاد المفتاح الأخير (إلا لو كان هو الوحيد)
-            valid_indices = [i for i in all_indices if i != last_key_index]
-            if not valid_indices: valid_indices = all_indices # لو مفيش غير مفتاح واحد استخدمه وخلاص
-
-            # 4. اختيار مفتاح جديد عشوائي من القائمة المصفاة
-            new_index = random.choice(valid_indices)
-            CURRENT_KEY = GEMINI_API_KEYS[new_index]
-            logger.info(f"✅ Selected new key index: {new_index}")
-
-            # 5. تحديث الملف في المستودع بالرقم الجديد
-            if not TEST_MODE:
-                try:
-                    if last_key_index == -1:
-                        repo.create_file("last_key_index.txt", "Init key history", str(new_index))
-                    else:
-                        repo.update_file(key_file.path, "Update key rotation", str(new_index), key_file.sha)
-                except Exception as update_err:
-                    logger.warning(f"⚠️ Could not update key history: {update_err}")
-
-        except Exception as e:
-            logger.error(f"⚠️ Key rotation logic failed: {e}")
-            CURRENT_KEY = random.choice(GEMINI_API_KEYS) # خطة بديلة
-        # --- نهاية كود تدوير المفاتيح ---
+        # تغيير المفتاح في بداية التشغيل
+        rotate_api_key(repo)
 
         plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
         if not plan_files:
@@ -1188,9 +1323,11 @@ def main():
         
         logger.info(f"📝 Generating article: {article['title']}")
         post_body = write_full_article(article)
+        # تشغيل محرك الربط الداخلي (يسحب المقالات، يغير الـ API، ويزرع الروابط)
+        service = get_blogger_service()
+        post_body = apply_smart_internal_linking(post_body, repo, service)
         
         try:
-            service = get_blogger_service()
             category_name = selected_file.name.replace("content_plan_", "").replace(".json", "").replace("_", " ")
             
             post_data = {
