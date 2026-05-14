@@ -338,7 +338,7 @@ def get_competitors_structure(keyword):
     successful_scrapes = 0
     
     # القائمة السوداء للمواقع التي لا نريد تحليلها (ليست مقالات)
-    blacklist =['youtube.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com', 'pinterest.com', 'linkedin.com', 'amazon.', 'apple.com']
+    blacklist =['youtube.com', 'facebook.com', 'x.com', 'instagram.com', 'tiktok.com', 'pinterest.com', 'linkedin.com', 'amazon.', 'reddit.com', 'quora.com', 'apple.com']
     
     try:
         # نجلب 15 نتيجة لكي يكون لدينا احتياطي لو تم حظر بعضها
@@ -422,11 +422,7 @@ def get_gemini_client_and_model():
     
     client = genai.Client(api_key=CURRENT_KEY)
     
-    models_list =[
-        'gemini-2.5-flash',
-        'gemma-4-31b-it'
-    ]
-    selected_model = random.choice(models_list)
+    selected_model = random.choice(GEMINI_MODELS)
     
     return client, selected_model
 
@@ -469,7 +465,7 @@ def generate_article_structure(title, keyword, search_intent="معلوماتية
 	
     بجانب كل عنوان، حدد:
     - level: إما "h2" أو "h3" أو "h4" أو "intro" (للمقدمة فقط في البداية)
-    - type: نوع المحتوى من هذه القائمة حصراً: [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, featured_paragraph, code_block, pros_cons, emoji_check_list]
+    - type: نوع المحتوى من هذه القائمة حصراً: [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, code_prompt_script_box, featured_paragraph, pros_cons, emoji_check_list]
     - title: نص العنوان (يجب أن يكون فريداً)
 
     يجب أن يكون الرد بصيغة JSON Array فقط، مثل هذا الشكل (مثال):
@@ -626,7 +622,7 @@ def make_keywords_bold(text, keyword, synonyms_list, global_tracker=None):
             
     return text
 
-def get_content_prompt(section_type, section_title, keyword, synonyms_list=None, search_intent="معلوماتية", article_goal=""):
+def get_content_prompt(section_type, section_title, keyword, synonyms_list=None, search_intent="معلوماتية", article_goal="", next_title="", all_headings=""):
     """اختيار البرومبت المناسب مع مرادفات عشوائية"""
     
     # نرسل كل المرادفات المتاحة (أول 35 مثلاً لتجنب الطول الزائد في البرومبت)
@@ -686,18 +682,26 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     if not intent_rule:
         intent_rule = "النية (معلوماتية شاملة): قدم دليلاً شاملاً، غنياً بالمعلومات القيمة التي تجعل من مقالك المرجع الأول والنهائي للزائر."
 
-    # حقن النية والهدف معاً في التعليمات الصارمة
+    # تجهيز جملة التسليم للفقرة القادمة
+    bridge_instruction = ""
+    if next_title and section_type not in ['conclusion', 'faq', 'summary_box', 'motivation_box']:
+        bridge_instruction = f"8. 🔗 انسيابية القراءة: اختم فقرتك بجملة تمهيدية سلسة جداً (جسر انتقال ذكي) تسلم ذهن القارئ بسلاسة للقسم القادم الذي سيكون بعنوان: '{next_title}'."
+
+    # حقن النية والهدف والتعليمات الصارمة
     strict_instructions = f"""
     ⛔ تعليمات صارمة جداً:
-    1. ممنوع كتابة أي مقدمات أو مقدمة ترحيبية (مثل: بالتأكيد، إليك الفقرة...، ...إلخ).
+    1. ممنوع كتابة أي مقدمات أو مقدمة ترحيبية (مثل: بالتأكيد، إليك الفقرة ..إلخ).
     2. ممنوع كتابة العناوين مرة أخرى.
     3. التزم بعدد الأسطر المحدد بدقة.
     4. ابدأ مباشرة بالمحتوى المطلوب.
     5. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين.
     6. اكتب بأسلوب بشري طبيعي ومباشر 100% وموجه لنية الباحث وهدفه 100%.
     7. ممنوع الحشو ولا التكرار.
-	8. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
-    9. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
+	8. ⛔ قاعدة نحوية صارمة: إذا كانت الكلمة المفتاحية تبدو كجملة بحث ركيكة (مثل: "أمن المعلومات شرح")، يُمنع منعاً باتاً حشرها كما هي. قم بصياغتها نحوياً بشكل صحيح ومندمج في السياق (مثل: "شرح أمن المعلومات"). الأولوية المطلقة لسلامة اللغة العربية.
+    7. 🖍️ التظليل الذكي: مسموح لك بتظليل (كلمة واحدة أو كلمتين فقط) من أهم المصطلحات في هذه الفقرة باستخدام وسم <mark>الكلمة</mark>. ⛔ تحذير: ممنوع تظليل جمل كاملة، وممنوع استخدام التظليل أكثر من مرتين في القسم الواحد. استخدمه للكلمات الهامة أو الأرقام الهامة فقط.
+    {bridge_instruction}
+	10. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
+    11. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
     """
 
     prompts = {
@@ -839,9 +843,11 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
         "conclusion": f"""
         {strict_instructions}
         
-        اكتب خاتمة كاملة وشاملة وموجهة لنية الباحث + كأن خبير بيختم عن "{section_title}" احترافية وتشد القارئ بإسلوب لا واعي علي تصفح الموقع لقراءة الكثير من المواضيع الأخرى ومتوافقة مع معايير السيو:
+        اكتب خاتمة كاملة وشاملة عن "{section_title}" احترافية وتشد القارئ بإسلوب لا واعي علي تصفح الموقع لقراءة الكثير من المواضيع الأخرى ومتوافقة مع معايير السيو:
         - تلخص الموضوع كاملاً
-        - فقرة واحدة فقط في حدود من 2 إلى 4 أسطر
+        - هذه هي العناوين التي تم شرحها بالفعل في هذا المقال:
+        {all_headings}
+        - فقرة واحدة فقط في حدود من 2 إلى 3 أسطر
 		- الدعوة لاتخاذ إجراء (Call to Action)
         - تشجع على التعليق والمشاركة بإسلوب لا واعي وحثه على قراءة المزيد من المواضيع ذات صلة
         
@@ -868,7 +874,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
         
         """,
 
-        "code_block": f"""
+        "code_prompt_script_box": f"""
         {strict_instructions}
 		
         انشئ صندوق HTML (ياخذ الوان #bb3b17 و#faad2a أو ما بينهم + وخط القالب بلوجر اللي مركبه تلقائيًا) عن "{section_title}" متوافق مع معايير السيو:
@@ -919,9 +925,10 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
         "motivation_box": f"""
         {strict_instructions}
         
-        اكتب فقرة تحفيزية قصيرة لا تتجاوز سطرين احترافية وفضولية ومشوقة.
+        اكتب فقرة تحفيزية قصيرة (سطر أو سطرين كحد أقصى) تعمل كـ "جسر انتقال ذكي".
         - أسلوب بشري جذاب بعيداً عن الصيغ البيعية المكررة
-        - تشجع على إكمال القراءة
+        - شجع القارئ على الاستمرار والتعليق، ومهّد بحماس شديد للقسم القادم الذي سيكون بعنوان: "{section_title}".
+        - لا تستخدم عناوين، فقط الفقرة التحفيزية مباشرة.
         
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
@@ -951,6 +958,23 @@ def analyze_intent_dynamically(title, keyword):
     except Exception as e:
         print(f"   ⚠️ فشل تحليل النية ديناميكياً: {e}")
         return "معلوماتية شاملة" # ملاذ أخير فقط لو سيرفر جوجل سقط تماماً
+
+def apply_pastel_highlights(html_content):
+    """
+    يبحث عن أوسام <mark> التي كتبها جيميناي، ويستبدلها بتنسيق CSS 
+    يحتوي على الألوان الهادئة التي طلبها المستخدم عشوائياً.
+    """
+    colors = ['#F4CCCC', '#FCE5CD', '#FFF2CC', '#D9EAD3', '#D0E0E3', '#CFE2F3', '#D9D2E9', '#EAD1DC']
+    
+    # حلقة لاستبدال كل وسم <mark> بلون مختلف عشوائي
+    while '<mark>' in html_content:
+        chosen_color = random.choice(colors)
+        replacement = f'<span style="background-color: {chosen_color};">'
+        html_content = html_content.replace('<mark>', replacement, 1)
+        
+    # إغلاق الوسم
+    html_content = html_content.replace('</mark>', '</span>')
+    return html_content
 
 def write_full_article(article_data):
     """كتابة المقال مع دمج الهدف (Goal)"""
@@ -1081,6 +1105,9 @@ def write_full_article(article_data):
 	
     mid_index = len(structure) // 2
 
+    # جمع كل عناوين المقال كنص واحد لكي تقرأها الخاتمة
+    all_headings_text = "\n".join([f"- {item['title']}" for item in structure if item['type'] not in ['introduction', 'conclusion']])
+
     current_h2_context = "" # متغير لتخزين عنوان القسم الحالي
 	
     # 3. المرور على الأقسام ببطء شديد
@@ -1092,7 +1119,10 @@ def write_full_article(article_data):
         sec_type = section.get('type', 'text_paragraph')
         if level == 'h2':
             current_h2_context = title_text # احفظ العنوان الكبير
-        
+
+        # استخراج العنوان القادم (لكي تسلم الفقرة الحالية له)
+        next_section_title = structure[i+1]['title'] if i+1 < len(structure) else ""
+		
         # إضافة العناوين HTML (إلا لو كانت خاتمة أو مقدمة بدون عنوان صريح)
         write_title = True
         if sec_type == 'conclusion': write_title = False
@@ -1104,7 +1134,7 @@ def write_full_article(article_data):
              write_title = False
              
              # نجهز البرومبت الأساسي مباشرة بدون المكتبة القديمة
-             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal)
+             prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal, next_section_title, all_headings_text)
 				 
         if write_title and title_text:
             if level == 'h2': full_html += f"<h2>{title_text}</h2>\n"
@@ -1123,7 +1153,7 @@ def write_full_article(article_data):
                 print(f"   🔍 Found info: {web_context[:1000]}...") # يطبع أول 1000 حرف فقط للتأكيد
         # -----------------------------
 
-        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal)
+        prompt = get_content_prompt(sec_type, title_text, keyword, synonyms, search_intent, article_goal, next_section_title, all_headings_text)
 
         # --- حقن المعلومات في البرومبت (بذكاء وحصرية) ---
         if web_context:
@@ -1217,7 +1247,11 @@ def write_full_article(article_data):
                 if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
                     print("   -> Injecting Motivation...")
                     try:
-                        mot_prompt = get_content_prompt("motivation_box", "تحفيز", keyword, synonyms, search_intent, article_goal)
+                        # 1. استخراج عنوان القسم القادم (للتشويق إليه)
+                        next_title = structure[i+1]['title'] if i+1 < len(structure) else "الجزء القادم"
+                        
+                        # 2. إرسال العنوان القادم للبرومبت
+                        mot_prompt = get_content_prompt("motivation_box", next_section_title, keyword, synonyms, search_intent, article_goal, "", all_headings_text)
                         res = chat.send_message(mot_prompt)
                         mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
                         # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
@@ -1266,7 +1300,7 @@ def write_full_article(article_data):
     
     while not summary_success and sum_retries < 3:
         try:
-            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent, article_goal)
+            sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent, article_goal, "", all_headings_text)
             sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
             sum_client, sum_selected_model = get_gemini_client_and_model()
@@ -1324,6 +1358,15 @@ def write_full_article(article_data):
 
     # --- التعديل: تنسيق العناوين : إلى | ---
     full_html = format_headings_style(full_html)
+
+    # --- تشغيل محرك الربط الداخلي الذكي ---
+    full_html = apply_smart_internal_linking(full_html, repo, blogger_service)
+    
+    # --- تشغيل محرك الربط الخارجي (Nofollow) ---
+    full_html = inject_external_links(full_html, EXTERNAL_LINKS_DICTIONARY)
+
+    # --- تشغيل محرك التلوين الباستيل (Pastel Highlighting) ---
+    full_html = apply_pastel_highlights(full_html)
 
     return full_html
 
