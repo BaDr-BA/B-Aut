@@ -28,6 +28,21 @@ logger = logging.getLogger(__name__)
 # --- وضع الاختبار ---
 TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
 
+GEMINI_MODELS = [
+    'gemini-2.5-flash',
+    'gemma-4-31b-it'
+]
+
+# --- خزانة الروابط الخارجية (External Nofollow Links) ---
+EXTERNAL_LINKS_DICTIONARY = {
+    "Gemini": "https://gemini.google.com/",
+    "ChatGPT": "https://chatgpt.com/",
+    "Claude": "https://claude.ai/",
+    "Midjourney": "https://www.midjourney.com/",
+    "OpenAI": "https://openai.com/",
+    "Google Search Console": "https://search.google.com/search-console/about"
+}
+
 # --- الإعدادات والمفاتيح ---
 GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 1000) if os.environ.get(f"GEMINI_API_KEY_{i}")]
 CURRENT_KEY = None # نخزن فيه المفتاح المختار لهذه الجلسة
@@ -454,7 +469,7 @@ def generate_article_structure(title, keyword, search_intent="معلوماتية
 	
     بجانب كل عنوان، حدد:
     - level: إما "h2" أو "h3" أو "h4" أو "intro" (للمقدمة فقط في البداية)
-    - type: نوع المحتوى من هذه القائمة حصراً: [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, featured_paragraph, pros_cons, emoji_check_list]
+    - type: نوع المحتوى من هذه القائمة حصراً: [introduction, list_bullet, list_numbered, table, faq, conclusion, text_paragraph, featured_paragraph, code_block, pros_cons, emoji_check_list]
     - title: نص العنوان (يجب أن يكون فريداً)
 
     يجب أن يكون الرد بصيغة JSON Array فقط، مثل هذا الشكل (مثال):
@@ -852,7 +867,24 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
         """,
+
+        "code_block": f"""
+        {strict_instructions}
+		
+        انشئ صندوق HTML (ياخذ الوان #bb3b17 و#faad2a أو ما بينهم + وخط القالب بلوجر اللي مركبه تلقائيًا) عن "{section_title}" متوافق مع معايير السيو:
+		
+        المطلوب:
+		- ابدأ بمقدمة قصيرة تمهد للصندوق ومحتواه (200 حرف)
+		- ثم الصندوق الذي بداخله كود برمجي أو برومبت أو سكريبت يخص هذا الموضوع كامل وشامل (يكون متجاوب مع الهواتف والكمبيوتر واستخدم overflow-x: auto;)
+		- بدون CSS معقد
+		- مهم جدًا يجب أن يكون الصندوق يأخذ خط قالب بلوجر تلقائيًا
+
+        - استخدم الكلمة المفتاحية "{keyword}" وهذه المرادفات بشكل طبيعي: {syns_str}
+        - ⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
+        ابدأ كتابة الصندوق فوراً بدون أي مقدمات وبدون كتابة العنوان مرة أخرى.
+        """,
+		
         "summary_box": f"""
         
         أنت كاتب محتوى إبداعي (Copywriter) محترف جداً. مهمتك بيع هذا المقال للقارئ في ثوانٍ
@@ -1295,6 +1327,47 @@ def write_full_article(article_data):
 
     return full_html
 
+def inject_external_links(html_content, external_dict):
+    """
+    محرك الربط الخارجي الذكي:
+    يتجاهل حالة الأحرف (Case-Insensitive).
+    لا يزرع الروابط في العناوين (H1-H4).
+    يزرع الرابط مرة واحدة فقط للكلمة.
+    """
+    print("   🌍 Injecting External Nofollow Links automatically...")
+    
+    parts = re.split(r'(<[^>]+>)', html_content)
+    
+    for brand, url in external_dict.items():
+        brand_injected = False
+        
+        for i, part in enumerate(parts):
+            if brand_injected: break 
+            
+            # إذا كان نصاً عادياً (ليس كود HTML)
+            if not part.startswith('<'):
+                # فحص الوسم السابق للتأكد أننا لسنا داخل عنوان أو رابط
+                is_inside_restricted = False
+                if i > 0:
+                    prev_tag = parts[i-1].lower()
+                    if any(restricted in prev_tag for restricted in ['<h2', '<h3', '<h4', '<a']):
+                        is_inside_restricted = True
+                
+                if not is_inside_restricted:
+                    # بناء نمط بحث يتجاهل حالة الأحرف (IGNORECASE)
+                    # (?<![\w]) و (?![\w]) لضمان أننا نمسك الكلمة ككلمة مستقلة
+                    pattern = r'(?<![\w])' + re.escape(brand) + r'(?![\w])'
+                    
+                    if re.search(pattern, part, flags=re.IGNORECASE):
+                        # زرع الرابط الخارجي بخصائص السيو المطلوبة
+                        replacement = f'<a href="{url}" target="_blank" rel="nofollow">{brand}</a>'
+                        # استبدال أول ظهور فقط
+                        parts[i] = re.sub(pattern, replacement, part, count=1, flags=re.IGNORECASE)
+                        brand_injected = True
+                        print(f"      ✅ Linked external brand '{brand}' successfully.")
+                        
+    return ''.join(parts)
+
 def main():
     try:
         logger.info("🚀 Starting article generation process...")
@@ -1327,6 +1400,8 @@ def main():
         # تشغيل محرك الربط الداخلي (يسحب المقالات، يغير الـ API، ويزرع الروابط)
         service = get_blogger_service()
         post_body = apply_smart_internal_linking(post_body, repo, service)
+        # تشغيل محرك الربط الخارجي
+        post_body = inject_external_links(post_body, EXTERNAL_LINKS_DICTIONARY)
         
         try:
             category_name = selected_file.name.replace("content_plan_", "").replace(".json", "").replace("_", " ")
