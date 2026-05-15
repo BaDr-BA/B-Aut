@@ -1359,15 +1359,6 @@ def write_full_article(article_data):
     # --- التعديل: تنسيق العناوين : إلى | ---
     full_html = format_headings_style(full_html)
 
-    # --- تشغيل محرك الربط الداخلي الذكي ---
-    full_html = apply_smart_internal_linking(full_html, repo, blogger_service)
-    
-    # --- تشغيل محرك الربط الخارجي (Nofollow) ---
-    full_html = inject_external_links(full_html, EXTERNAL_LINKS_DICTIONARY)
-
-    # --- تشغيل محرك التلوين الباستيل (Pastel Highlighting) ---
-    full_html = apply_pastel_highlights(full_html)
-
     return full_html
 
 def inject_external_links(html_content, external_dict):
@@ -1440,6 +1431,22 @@ def main():
         
         logger.info(f"📝 Generating article: {article['title']}")
         post_body = write_full_article(article)
+        # --- تشغيل المحركات النهائية في دالة main (حيث يتوفر repo) ---
+        logger.info("⚙️ Running final formatting and linking engines...")
+        try:
+            service = get_blogger_service()
+            
+            # 1. التلوين الباستيل لعلامات
+            post_body = apply_pastel_highlights(post_body)
+            
+            # 2. الربط الخارجي (Nofollow)
+            post_body = inject_external_links(post_body, EXTERNAL_LINKS_DICTIONARY)
+            
+            # 3. الربط الداخلي الذكي (يعتمد على repo و service)
+            post_body = apply_smart_internal_linking(post_body, repo, service)
+            
+        except Exception as engine_err:
+            logger.error(f"⚠️ Error running final engines (Skipping to publish): {engine_err}")
         # تشغيل محرك الربط الداخلي (يسحب المقالات، يغير الـ API، ويزرع الروابط)
         service = get_blogger_service()
         post_body = apply_smart_internal_linking(post_body, repo, service)
