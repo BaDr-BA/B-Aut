@@ -55,6 +55,59 @@ def get_file_content(repo, file_path):
     except Exception:
         return None
 
+# متغيرات عالمية لتتبع مسار النماذج والمفاتيح
+CURRENT_MODEL_INDEX = 0
+CURRENT_KEY_INDEX = 0
+CURRENT_KEY = None
+
+def get_smart_client_and_model(repo, force_rotate=False):
+    """
+    محرك الطاقة لسكريبت الخطط (يتجنب مفتاح الكاتب ويدور على النماذج)
+    """
+    global CURRENT_KEY_INDEX, CURRENT_MODEL_INDEX, CURRENT_KEY
+    
+    status_file = "shared_api_status.json"
+    excluded_keys = []
+    
+    try:
+        content = repo.get_contents(status_file).decoded_content.decode('utf-8')
+        status_data = json.loads(content)
+        if "writer" in status_data:
+            excluded_keys.append(status_data["writer"])
+    except: pass
+
+    if force_rotate:
+        print(f"   🔄 Switching API Key for Model: {GEMINI_MODELS[CURRENT_MODEL_INDEX]}")
+        CURRENT_KEY_INDEX += 1
+        if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
+            print(f"   ⚠️ All keys exhausted for {GEMINI_MODELS[CURRENT_MODEL_INDEX]}. Switching to NEXT MODEL!")
+            CURRENT_KEY_INDEX = 0
+            CURRENT_MODEL_INDEX += 1
+            if CURRENT_MODEL_INDEX >= len(GEMINI_MODELS):
+                raise Exception("CRITICAL: All Models and All API Keys have been exhausted!")
+
+    while CURRENT_KEY_INDEX in excluded_keys and CURRENT_KEY_INDEX < len(GEMINI_API_KEYS):
+        CURRENT_KEY_INDEX += 1
+        if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
+            CURRENT_KEY_INDEX = 0
+            break
+
+    CURRENT_KEY = GEMINI_API_KEYS[CURRENT_KEY_INDEX]
+    selected_model = GEMINI_MODELS[CURRENT_MODEL_INDEX]
+    
+    if force_rotate:
+        try:
+            new_status = {"planner": CURRENT_KEY_INDEX, "writer": excluded_keys[0] if excluded_keys else -1}
+            try:
+                file_obj = repo.get_contents(status_file)
+                repo.update_file(status_file, "Update planner key", json.dumps(new_status), file_obj.sha)
+            except:
+                repo.create_file(status_file, "Init API status", json.dumps(new_status))
+        except: pass
+
+    client = genai.Client(api_key=CURRENT_KEY)
+    return client, selected_model
+
 def upload_or_update_github_file(repo, file_path, content, commit_message):
     try:
         existing_file = repo.get_contents(file_path)
@@ -166,45 +219,41 @@ Convert the table you created into this JSON format. Each object in the array mu
 Do not include any text, explanation, or markdown formatting like ```json before or after the JSON array itself.
 """
 
-def generate_plan_for_category(category, excluded_titles):
+def generate_plan_for_category(category, excluded_titles, repo):
     if not GEMINI_API_KEYS:
         raise ValueError("No Gemini API keys found.")
     
-    # 1. جلب الاقتراحات العميقة (Deep Suggestions)
+    # جلب الاقتراحات العميقة (Deep Suggestions)
     real_keywords_list = get_deep_google_suggestions(category)
-        
     prompt = get_content_plan_prompt(category, excluded_titles, real_keywords_list)
 
-    # 2. المرور على المفاتيح لتجنب استنفاد الكوتا
-    for api_key in GEMINI_API_KEYS:
-        print(f"\n   🔄 Trying API Key starting with: {api_key[:8]}...")
-        client = genai.Client(api_key=api_key)
+    max_retries = 20 # عدد محاولات كافٍ للمرور على كل المفاتيح والنماذج
+    force_rot = False
+    
+    for attempt in range(max_retries):
+        client, model_name = get_smart_client_and_model(repo, force_rotate=force_rot)
+        force_rot = False # إعادة ضبط للمحاولة القادمة
         
-        for model_name in GEMINI_MODELS:
-            print(f"      - Attempting with model: {model_name}...")
-            try:
-                # نرسل الطلب العادي
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt
-                )
+        print(f"      - Attempting with model: {model_name} (Key Index: {CURRENT_KEY_INDEX})...")
+        try:
+            response = client.models.generate_content(model=model_name, contents=prompt)
+            cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
+            new_articles = json.loads(cleaned_response)
+            
+            if isinstance(new_articles, list):
+                print(f"      🎉 Success! Generated {len(new_articles)} new articles with {model_name}.")
+                return new_articles
                 
-                cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
-                new_articles = json.loads(cleaned_response)
-                
-                if isinstance(new_articles, list):
-                    print(f"      🎉 Success! Generated {len(new_articles)} new articles with {model_name}.")
-                    return new_articles
-                    
-            except Exception as e:
-                error_msg = str(e)
-                print(f"      ❌ Failed with {model_name}. Reason: {error_msg.split('Details:')[0][:150]}...")
-                
-                if "429" in error_msg or "Quota" in error_msg:
-                    print("      ⚠️ ضغط على السيرفر أو انتهاء كوتا.. ننتظر 5 ثوانٍ...")
-                    time.sleep(5)
-                elif "400" in error_msg:
-                    pass 
+        except Exception as e:
+            error_msg = str(e).lower()
+            print(f"      ❌ Failed. Reason: {error_msg[:100]}...")
+            if "429" in error_msg or "quota" in error_msg or "500" in error_msg:
+                print("      ⚠️ Server issue or quota hit. Rotating key/model...")
+                force_rot = True
+                time.sleep(5)
+            else:
+                force_rot = True
+                time.sleep(5)
 
     raise RuntimeError(f"All keys and models failed to generate a plan for category: {category}")
 
@@ -328,7 +377,7 @@ if __name__ == "__main__":
                 print(f"   - Status: Below threshold ({len(existing_articles)}/{MINIMUM_ARTICLES_THRESHOLD}). Regeneration needed.")
                 try:
                     all_excluded = set(published_titles + [a['title'] for a in existing_articles])
-                    new_articles = generate_plan_for_category(category, list(all_excluded))
+                    new_articles = generate_plan_for_category(category, list(all_excluded), repo)
                     
                     final_articles = list({a['title']: a for a in existing_articles + new_articles}.values())
                     final_plan_json = json.dumps(final_articles, indent=2, ensure_ascii=False)
