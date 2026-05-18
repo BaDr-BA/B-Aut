@@ -227,7 +227,7 @@ def generate_plan_for_category(category, excluded_titles, repo):
     real_keywords_list = get_deep_google_suggestions(category)
     prompt = get_content_plan_prompt(category, excluded_titles, real_keywords_list)
 
-    max_retries = 20 # عدد محاولات كافٍ للمرور على كل المفاتيح والنماذج
+    max_retries = 100 # عدد محاولات كافٍ للمرور على كل المفاتيح والنماذج
     force_rot = False
     
     for attempt in range(max_retries):
