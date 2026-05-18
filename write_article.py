@@ -676,7 +676,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
       intent_rules.append("اقرأ ما بين السطور لما يبحث عنه القارئ وقدم إجابات تلبي احتياجه الخفي الذي لم يصرح به مباشرة.")
 
     # دمج كل النوايا التي وجدها في شخصية واحدة
-    intent_rule = " و ".join(intent_rules)
+    intent_rule = "\n    ".join(intent_rules)
 		
     # لو حصل أي خلل ولم يتم التقاط أي نية (تأمين إضافي)
     if not intent_rule:
