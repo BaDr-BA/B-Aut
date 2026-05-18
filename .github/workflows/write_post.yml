@@ -3,7 +3,7 @@ name: Auto Writer & Publisher
 on:
   workflow_dispatch:  # تشغيل يدوي
   schedule:
-    - cron: '0 */12 * * *'  # كل 12 ساعات
+    - cron: '0 */8 * * *'  # كل 8 ساعات
 
 permissions:      # <--- هذا هو الجزء الناقص المهم جداً
   contents: write # <--- هذا يعطي البوت صلاحية التعديل والرفع
