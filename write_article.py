@@ -33,16 +33,6 @@ GEMINI_MODELS = [
     'gemma-4-31b-it'
 ]
 
-# --- خزانة الروابط الخارجية (External Nofollow Links) ---
-EXTERNAL_LINKS_DICTIONARY = {
-    "Gemini": "https://gemini.google.com/",
-    "ChatGPT": "https://chatgpt.com/",
-    "Claude": "https://claude.ai/",
-    "Midjourney": "https://www.midjourney.com/",
-    "OpenAI": "https://openai.com/",
-    "Google Search Console": "https://search.google.com/search-console/about"
-}
-
 # --- الإعدادات والمفاتيح ---
 GEMINI_API_KEYS = [os.environ.get(f"GEMINI_API_KEY_{i}") for i in range(1, 1000) if os.environ.get(f"GEMINI_API_KEY_{i}")]
 CURRENT_KEY = None # نخزن فيه المفتاح المختار لهذه الجلسة
@@ -71,37 +61,68 @@ def clean_json_response(text):
     text = text.replace("```json", "").replace("```", "").strip()
     return text
 
-def rotate_api_key(repo):
-    """تدوير مفتاح API لتوزيع الحمل، وتحديث ملف last_key_index.txt"""
-    global CURRENT_KEY
+# متغيرات عالمية لتتبع مسار النماذج والمفاتيح
+CURRENT_MODEL_INDEX = 0
+CURRENT_KEY_INDEX = 0
+
+def get_smart_client_and_model(repo, force_rotate=False):
+    """
+    محرك الطاقة الذكي (Shared State & Hierarchical Rotation):
+    1. يقرأ ملف shared_api_status.json لتجنب المفتاح الذي يستخدمه السكريبت الآخر.
+    2. يطبق قاعدة: (النموذج الأول -> كل المفاتيح) ثم (النموذج الثاني -> كل المفاتيح).
+    """
+    global CURRENT_KEY_INDEX, CURRENT_MODEL_INDEX, CURRENT_KEY
+    
+    status_file = "shared_api_status.json"
+    excluded_keys = []
+    
+    # قراءة المفاتيح المحجوزة من السكريبتات الأخرى
     try:
-        last_key_index = -1
-        try:
-            key_file = repo.get_contents("last_key_index.txt")
-            last_key_index = int(key_file.decoded_content.decode("utf-8").strip())
-        except:
-            pass
+        content = repo.get_contents(status_file).decoded_content.decode('utf-8')
+        status_data = json.loads(content)
+        # إذا كان سكريبت الخطط (planner) يستخدم مفتاحاً، نستبعده
+        if "planner" in status_data:
+            excluded_keys.append(status_data["planner"])
+    except: pass
 
-        all_indices = list(range(len(GEMINI_API_KEYS)))
-        valid_indices = [i for i in all_indices if i != last_key_index]
-        if not valid_indices: valid_indices = all_indices
-
-        new_index = random.choice(valid_indices)
-        CURRENT_KEY = GEMINI_API_KEYS[new_index]
+    if force_rotate:
+        # إذا فشل المفتاح الحالي (429)، ننتقل للمفتاح الذي يليه
+        print(f"   🔄 Switching API Key for Model: {GEMINI_MODELS[CURRENT_MODEL_INDEX]}")
+        CURRENT_KEY_INDEX += 1
         
-        print(f"   🔄 [Rotation] Switched to new API Key Index: {new_index}")
+        # إذا جربنا كل المفاتيح على هذا النموذج، نغير النموذج!
+        if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
+            print(f"   ⚠️ All keys exhausted for {GEMINI_MODELS[CURRENT_MODEL_INDEX]}. Switching to NEXT MODEL!")
+            CURRENT_KEY_INDEX = 0
+            CURRENT_MODEL_INDEX += 1
+            
+            # إذا انتهت كل النماذج وكل المفاتيح
+            if CURRENT_MODEL_INDEX >= len(GEMINI_MODELS):
+                raise Exception("CRITICAL: All Models and All API Keys have been exhausted!")
 
-        if not TEST_MODE:
+    # حماية من استخدام مفتاح محجوز
+    while CURRENT_KEY_INDEX in excluded_keys and CURRENT_KEY_INDEX < len(GEMINI_API_KEYS):
+        CURRENT_KEY_INDEX += 1
+        if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
+            CURRENT_KEY_INDEX = 0 # تدوير
+            break
+
+    CURRENT_KEY = GEMINI_API_KEYS[CURRENT_KEY_INDEX]
+    selected_model = GEMINI_MODELS[CURRENT_MODEL_INDEX]
+    
+    # تسجيل المفتاح الحالي في الملف المشترك ليعرفه السكريبت الآخر
+    if force_rotate and not TEST_MODE:
+        try:
+            new_status = {"writer": CURRENT_KEY_INDEX, "planner": excluded_keys[0] if excluded_keys else -1}
             try:
-                if last_key_index == -1:
-                    repo.create_file("last_key_index.txt", "Init key history", str(new_index))
-                else:
-                    repo.update_file(key_file.path, "Update key rotation", str(new_index), key_file.sha)
-            except Exception as e:
-                pass
-    except Exception as e:
-        print(f"   ⚠️ Key rotation failed: {e}")
-        CURRENT_KEY = random.choice(GEMINI_API_KEYS)
+                file_obj = repo.get_contents(status_file)
+                repo.update_file(status_file, "Update writer key", json.dumps(new_status), file_obj.sha)
+            except:
+                repo.create_file(status_file, "Init API status", json.dumps(new_status))
+        except: pass
+
+    client = genai.Client(api_key=CURRENT_KEY)
+    return client, selected_model
 
 def get_published_posts_for_linking(service):
     """سحب جميع المقالات المنشورة من بلوجر (مهما كان عددها) وتحويلها لروابط نسبية"""
@@ -406,23 +427,6 @@ def format_headings_style(html_content):
     # Regex يستهدف h1, h2, h3, h4 ومحتواهم
     pattern = r'(<h[1-4][^>]*>)(.*?)(</h[1-4]>)'
     return re.sub(pattern, replace_colon, html_content, flags=re.DOTALL | re.IGNORECASE)
-
-def get_gemini_client_and_model():
-    """اختيار المفتاح المحدد أو عشوائي في حالة عدم التحديد"""
-    global CURRENT_KEY
-    
-    if not GEMINI_API_KEYS:
-        raise ValueError("No Gemini API keys found!")
-    
-    # إذا لم يتم تحديد مفتاح بعد، اختر واحداً عشوائياً
-    if CURRENT_KEY is None:
-        CURRENT_KEY = random.choice(GEMINI_API_KEYS)
-    
-    client = genai.Client(api_key=CURRENT_KEY)
-    
-    selected_model = random.choice(GEMINI_MODELS)
-    
-    return client, selected_model
 
 def generate_article_structure(title, keyword, search_intent="معلوماتية"):
     """توليد هيكل المقال بناءً على تحليل المنافسين الحقيقي (Skyscraper Technique)"""
@@ -1046,7 +1050,7 @@ def write_full_article(article_data):
     global_bold_tracker = set()
 
     # 1. إعداد الجلسة الأولى
-    client, selected_model = get_gemini_client_and_model()
+    client, selected_model = get_smart_client_and_model(repo, force_rotate=False)
     config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
     chat = client.chats.create(model=selected_model, config=config)
 
@@ -1163,7 +1167,7 @@ def write_full_article(article_data):
                     # هنا بنغير المفتاح والكلام ده...
                     
                     # نبدأ شات جديد
-                    client, selected_model = get_gemini_client_and_model()
+                    client, selected_model = get_smart_client_and_model(repo, force_rotate=True)
                     config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
                     chat = client.chats.create(model=selected_model, config=config)
                     
@@ -1318,44 +1322,70 @@ def write_full_article(article_data):
 
 def inject_external_links(html_content, external_dict):
     """
-    محرك الربط الخارجي الذكي:
-    يتجاهل حالة الأحرف (Case-Insensitive).
-    لا يزرع الروابط في العناوين (H1-H4).
-    يزرع الرابط مرة واحدة فقط للكلمة.
+    محرك الربط الخارجي الذكي (نسخة التتبع العميق):
+    يتجاهل العناوين ورؤوس الجداول حتى لو كانت متداخلة.
+    يزرع الرابط مرة واحدة فقط للكلمة في المقال بأكمله.
     """
     print("   🌍 Injecting External Nofollow Links automatically...")
     
     parts = re.split(r'(<[^>]+>)', html_content)
+    # قائمة الأوسام الممنوع وضع روابط بداخلها (تم إضافة رؤوس الجداول th و thead)
+    restricted_tags = ['h1', 'h2', 'h3', 'h4', 'a', 'th', 'thead', 'button']
     
     for brand, url in external_dict.items():
         brand_injected = False
+        inside_restricted_count = 0  # عداد ذكي لتتبع التداخل
         
         for i, part in enumerate(parts):
-            if brand_injected: break 
+            if brand_injected: 
+                break # الكلمة تم ربطها مرة، نخرج وندخل على الكلمة التي بعدها في القاموس
             
-            # إذا كان نصاً عادياً (ليس كود HTML)
-            if not part.startswith('<'):
-                # فحص الوسم السابق للتأكد أننا لسنا داخل عنوان أو رابط
-                is_inside_restricted = False
-                if i > 0:
-                    prev_tag = parts[i-1].lower()
-                    if any(restricted in prev_tag for restricted in ['<h2', '<h3', '<h4', '<a']):
-                        is_inside_restricted = True
+            # إذا كان الجزء عبارة عن كود HTML، نقوم بتحديث العداد
+            if part.startswith('<'):
+                tag_match = re.match(r'</?([a-zA-Z0-9]+)', part)
+                if tag_match:
+                    tag_name = tag_match.group(1).lower()
+                    if tag_name in restricted_tags:
+                        # إذا كان وسم إغلاق، ننقص العداد
+                        if part.startswith('</'):
+                            inside_restricted_count = max(0, inside_restricted_count - 1)
+                        # إذا كان وسم فتح (وليس إغلاق ذاتي)، نزيد العداد
+                        elif not part.endswith('/>'):
+                            inside_restricted_count += 1
+                continue
+            
+            # إذا كان نصاً عادياً، ولسنا داخل أي وسم ممنوع (العداد = 0)
+            if inside_restricted_count == 0:
+                pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(brand) + r'(?![\w\u0600-\u06FF])'
                 
-                if not is_inside_restricted:
-                    # بناء نمط بحث يتجاهل حالة الأحرف (IGNORECASE)
-                    # (?<![\w]) و (?![\w]) لضمان أننا نمسك الكلمة ككلمة مستقلة
-                    pattern = r'(?<![\w])' + re.escape(brand) + r'(?![\w])'
+                if re.search(pattern, part, flags=re.IGNORECASE):
+                    # زرع الرابط الخارجي (Nofollow + Blank) مرة واحدة فقط
+                    replacement = f'<a href="{url}" target="_blank" rel="nofollow">{brand}</a>'
+                    parts[i] = re.sub(pattern, replacement, part, count=1, flags=re.IGNORECASE)
+                    brand_injected = True
+                    print(f"      ✅ Linked external brand '{brand}' successfully.")
                     
-                    if re.search(pattern, part, flags=re.IGNORECASE):
-                        # زرع الرابط الخارجي بخصائص السيو المطلوبة
-                        replacement = f'<a href="{url}" target="_blank" rel="nofollow">{brand}</a>'
-                        # استبدال أول ظهور فقط
-                        parts[i] = re.sub(pattern, replacement, part, count=1, flags=re.IGNORECASE)
-                        brand_injected = True
-                        print(f"      ✅ Linked external brand '{brand}' successfully.")
-                        
     return ''.join(parts)
+
+def get_external_links_from_github(repo):
+    """
+    يقرأ الروابط الخارجية من ملف على جيت هاب.
+    إذا لم يكن الملف موجوداً، يقوم بإنشائه فارغاً لتقوم أنت بتعبئته لاحقاً.
+    """
+    file_path = "external_links.json"
+    try:
+        content = repo.get_contents(file_path).decoded_content.decode('utf-8')
+        links_dict = json.loads(content)
+        print(f"   🌍 Loaded {len(links_dict)} external links from GitHub.")
+        return links_dict
+    except Exception:
+        # إذا لم يجد الملف، ينشئ واحداً كنموذج
+        print("   ⚠️ external_links.json not found. Creating a default one...")
+        default_dict = {"Gemini": "https://gemini.google.com/", "ChatGPT": "https://chatgpt.com/"}
+        try:
+            repo.create_file(file_path, "Create external links file", json.dumps(default_dict, indent=2))
+        except: pass
+        return default_dict
 
 def main():
     try:
@@ -1364,9 +1394,6 @@ def main():
         auth = Auth.Token(GITHUB_TOKEN)
         g = Github(auth=auth)
         repo = g.get_repo(REPO_NAME)
-
-        # تغيير المفتاح في بداية التشغيل
-        rotate_api_key(repo)
 
         plan_files = [f for f in repo.get_contents(PLANS_DIR) if f.name.endswith(".json")]
         if not plan_files:
@@ -1391,19 +1418,15 @@ def main():
         try:
             service = get_blogger_service()
             
-            # 1. الربط الخارجي (Nofollow)
-            post_body = inject_external_links(post_body, EXTERNAL_LINKS_DICTIONARY)
+            # 1. الربط الخارجي من ملف جيت هاب
+            external_dict = get_external_links_from_github(repo)
+            post_body = inject_external_links(post_body, external_dict)
             
             # 2. الربط الداخلي الذكي (يعتمد على repo و service)
             post_body = apply_smart_internal_linking(post_body, repo, service)
             
         except Exception as engine_err:
             logger.error(f"⚠️ Error running final engines (Skipping to publish): {engine_err}")
-        # تشغيل محرك الربط الداخلي (يسحب المقالات، يغير الـ API، ويزرع الروابط)
-        service = get_blogger_service()
-        post_body = apply_smart_internal_linking(post_body, repo, service)
-        # تشغيل محرك الربط الخارجي
-        post_body = inject_external_links(post_body, EXTERNAL_LINKS_DICTIONARY)
         
         try:
             category_name = selected_file.name.replace("content_plan_", "").replace(".json", "").replace("_", " ")
