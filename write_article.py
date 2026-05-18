@@ -321,8 +321,6 @@ def clean_text_symbols(text):
         else:
             # إزالة علامات الاقتباس
             cleaned_part = part.replace('"', '')
-            # إذا كان هناك علامة تعجب ملتصقة بكلمة بعدها، ضع مسافة (مثال: رائع!هذا -> رائع! هذا)
-            cleaned_part = re.sub(r'!([^\s<])', r'! \1', cleaned_part)
             cleaned_parts.append(cleaned_part)
             
     return ''.join(cleaned_parts)
@@ -685,7 +683,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     # تجهيز جملة التسليم للفقرة القادمة
     bridge_instruction = ""
     if next_title and section_type not in ['conclusion', 'faq', 'summary_box', 'motivation_box']:
-        bridge_instruction = f"10. 🔗 انسيابية القراءة: اختم فقرتك بجملة تمهيدية سلسة جداً (جسر انتقال ذكي) (لا تكتب العنوان كما هو أبداً) بل تسلم ذهن القارئ بسلاسة للقسم القادم الذي سيكون بعنوان: '{next_title}'."
+        bridge_instruction = f"9. 🔗 انسيابية القراءة: اختم فقرتك بجملة تمهيدية سلسة جداً (جسر انتقال ذكي) (لا تكتب العنوان كما هو أبداً) بل تسلم ذهن القارئ بسلاسة للقسم القادم الذي سيكون بعنوان: '{next_title}'."
 
     # حقن النية والهدف والتعليمات الصارمة
     strict_instructions = f"""
@@ -695,14 +693,13 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     3. التزم بعدد الأسطر المحدد بدقة.
     4. ابدأ مباشرة بالمحتوى المطلوب.
     5. لا تستخدم "المقدمة:" أو "الخاتمة:" أو أي عناوين.
-    6. اكتب بأسلوب بشري طبيعي ومباشر 100% وموجه لنية الباحث وهدفه 100%.
+    6. اكتب بأسلوب بشري طبيعي، حديث، ومباشر 100% وموجه لنية الباحث وهدفه 100%. ⛔ يُمنع تماماً استخدام أي كلمات الكلاسيكية معقدة سواء في بداية الجمل (مثل: إنّ، لقد، حيث أن، مما لا شك فيه، أو أي كلمة أخرى) أو في وسط أو أخر الجمل . ادخل في صلب الموضوع فوراً وكأنك خبير يتحدث بثقة.
     7. ممنوع الحشو ولا التكرار.
 	8. ⛔ قاعدة نحوية صارمة: إذا كانت الكلمة المفتاحية تبدو كجملة بحث ركيكة (مثل: "أمن المعلومات شرح")، يُمنع منعاً باتاً حشرها كما هي. قم بصياغتها نحوياً بشكل صحيح ومندمج في السياق (مثل: "شرح أمن المعلومات"). الأولوية المطلقة لسلامة اللغة العربية.
-    9. 🖍️ التظليل الذكي: مسموح لك بتظليل (كلمة واحدة أو كلمتين فقط) من أهم المصطلحات في هذه الفقرة باستخدام وسم <mark>الكلمة</mark>. ⛔ تحذير: ممنوع تظليل جمل كاملة، وممنوع استخدام التظليل أكثر من مرتين في القسم الواحد. استخدمه للكلمات الهامة أو الأرقام الهامة فقط.
     {bridge_instruction}
-	11. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
-    12. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
-	13. 🛑 تحذير خطير جداً: يُمنع منعاً باتاً كتابة أسماء النوايا (مثل كلمة: معلوماتية، إجرائية، استقصائية، النية) كعناوين أو داخل النص. طبق الأسلوب المطلوب فقط دون أن تذكر اسمه أبداً
+	10. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
+    11. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
+	12. 🛑 تحذير خطير جداً: يُمنع منعاً باتاً كتابة أسماء النوايا (مثل كلمة: معلوماتية، إجرائية، استقصائية، النية) كعناوين أو داخل النص. طبق الأسلوب المطلوب فقط دون أن تذكر اسمه أبداً
     """
 
     prompts = {
@@ -926,19 +923,6 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
         استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
 		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
         
-        """,
-        
-        "motivation_box": f"""
-        {strict_instructions}
-        
-        اكتب فقرة تحفيزية قصيرة (سطر أو سطرين كحد أقصى) تعمل كـ "جسر انتقال ذكي".
-        - أسلوب بشري جذاب بعيداً عن الصيغ البيعية المكررة
-        - شجع القارئ على الاستمرار والتعليق، ومهّد بحماس شديد للقسم القادم الذي سيكون بعنوان: "{section_title}".
-        - لا تستخدم عناوين، فقط الفقرة التحفيزية مباشرة.
-        
-        استخدم الكلمة المفتاحية الأساسية "{keyword}" وهذه المرادفات بشكل طبيعي ومتنوع: {syns_str}
-		⚠️ مهم: وزّع هذه الكلمات في المحتوى بشكل طبيعي وغير متكلف لتحسين SEO الجديد.
-        ابدأ فوراً في الكتابة بدون أي مقدمات.
         """
     }
     
@@ -964,23 +948,6 @@ def analyze_intent_dynamically(title, keyword):
     except Exception as e:
         print(f"   ⚠️ فشل تحليل النية ديناميكياً: {e}")
         return "معلوماتية شاملة" # ملاذ أخير فقط لو سيرفر جوجل سقط تماماً
-
-def apply_pastel_highlights(html_content):
-    """
-    يبحث عن أوسام <mark> التي كتبها جيميناي، ويستبدلها بتنسيق CSS 
-    يحتوي على الألوان الهادئة التي طلبها المستخدم عشوائياً.
-    """
-    colors = ['#F4CCCC', '#FCE5CD', '#FFF2CC', '#D9EAD3', '#D0E0E3', '#CFE2F3', '#D9D2E9', '#EAD1DC']
-    
-    # حلقة لاستبدال كل وسم <mark> بلون مختلف عشوائي
-    while '<mark>' in html_content:
-        chosen_color = random.choice(colors)
-        replacement = f'<span style="background-color: {chosen_color};">'
-        html_content = html_content.replace('<mark>', replacement, 1)
-        
-    # إغلاق الوسم
-    html_content = html_content.replace('</mark>', '</span>')
-    return html_content
 
 def write_full_article(article_data):
     """كتابة المقال مع دمج الهدف (Goal)"""
@@ -1247,24 +1214,6 @@ def write_full_article(article_data):
                 
                 print("   ⏳ Sleeping 65s to avoid Quota limit...")
                 time.sleep(65)
-                
-
-                # كود التحفيز (Motivation) يبقى هنا
-                if i == mid_index and sec_type != 'introduction': # تأكيد عدم وضعه في المقدمة
-                    print("   -> Injecting Motivation...")
-                    try:
-                        # 1. استخراج عنوان القسم القادم (للتشويق إليه)
-                        next_title = structure[i+1]['title'] if i+1 < len(structure) else "الجزء القادم"
-                        
-                        # 2. إرسال العنوان القادم للبرومبت
-                        mot_prompt = get_content_prompt("motivation_box", next_section_title, keyword, synonyms, search_intent, article_goal, "", all_headings_text)
-                        res = chat.send_message(mot_prompt)
-                        mot_content = clean_text_symbols(res.text.replace('```html','').replace('```',''))
-                        # لا نعمل بولد للتحفيز عادة، أو نتركه كما هو
-                        full_html += f"<div style='text-align:center;'>{mot_content}</div>\n<br>\n"
-                        print("   ⏳ Sleeping 85s after Motivation...")
-                        time.sleep(85)
-                    except: pass
 
             except Exception as e:
                 retries += 1
@@ -1442,13 +1391,10 @@ def main():
         try:
             service = get_blogger_service()
             
-            # 1. التلوين الباستيل لعلامات
-            post_body = apply_pastel_highlights(post_body)
-            
-            # 2. الربط الخارجي (Nofollow)
+            # 1. الربط الخارجي (Nofollow)
             post_body = inject_external_links(post_body, EXTERNAL_LINKS_DICTIONARY)
             
-            # 3. الربط الداخلي الذكي (يعتمد على repo و service)
+            # 2. الربط الداخلي الذكي (يعتمد على repo و service)
             post_body = apply_smart_internal_linking(post_body, repo, service)
             
         except Exception as engine_err:
