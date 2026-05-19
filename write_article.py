@@ -65,7 +65,7 @@ def clean_json_response(text):
 CURRENT_MODEL_INDEX = 0
 CURRENT_KEY_INDEX = 0
 
-def get_smart_client_and_model(repo, force_rotate=False):
+def get_smart_client_and_model(force_rotate=False):
     """
     محرك الطاقة الذكي (Shared State & Hierarchical Rotation):
     1. يقرأ ملف shared_api_status.json لتجنب المفتاح الذي يستخدمه السكريبت الآخر.
@@ -75,43 +75,41 @@ def get_smart_client_and_model(repo, force_rotate=False):
     
     status_file = "shared_api_status.json"
     excluded_keys = []
+    repo = None
     
-    # قراءة المفاتيح المحجوزة من السكريبتات الأخرى
+    # الاتصال السريع بجيت هاب في الخلفية
     try:
+        g = Github(auth=Auth.Token(GITHUB_TOKEN))
+        repo = g.get_repo(REPO_NAME)
         content = repo.get_contents(status_file).decoded_content.decode('utf-8')
         status_data = json.loads(content)
-        # إذا كان سكريبت الخطط (planner) يستخدم مفتاحاً، نستبعده
         if "planner" in status_data:
             excluded_keys.append(status_data["planner"])
     except: pass
 
     if force_rotate:
-        # إذا فشل المفتاح الحالي (429)، ننتقل للمفتاح الذي يليه
         print(f"   🔄 Switching API Key for Model: {GEMINI_MODELS[CURRENT_MODEL_INDEX]}")
         CURRENT_KEY_INDEX += 1
         
-        # إذا جربنا كل المفاتيح على هذا النموذج، نغير النموذج!
         if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
             print(f"   ⚠️ All keys exhausted for {GEMINI_MODELS[CURRENT_MODEL_INDEX]}. Switching to NEXT MODEL!")
             CURRENT_KEY_INDEX = 0
             CURRENT_MODEL_INDEX += 1
             
-            # إذا انتهت كل النماذج وكل المفاتيح
             if CURRENT_MODEL_INDEX >= len(GEMINI_MODELS):
                 raise Exception("CRITICAL: All Models and All API Keys have been exhausted!")
 
-    # حماية من استخدام مفتاح محجوز
     while CURRENT_KEY_INDEX in excluded_keys and CURRENT_KEY_INDEX < len(GEMINI_API_KEYS):
         CURRENT_KEY_INDEX += 1
         if CURRENT_KEY_INDEX >= len(GEMINI_API_KEYS):
-            CURRENT_KEY_INDEX = 0 # تدوير
+            CURRENT_KEY_INDEX = 0
             break
 
     CURRENT_KEY = GEMINI_API_KEYS[CURRENT_KEY_INDEX]
     selected_model = GEMINI_MODELS[CURRENT_MODEL_INDEX]
     
-    # تسجيل المفتاح الحالي في الملف المشترك ليعرفه السكريبت الآخر
-    if force_rotate and not TEST_MODE:
+    # تسجيل المفتاح في جيت هاب
+    if force_rotate and repo and not TEST_MODE:
         try:
             new_status = {"writer": CURRENT_KEY_INDEX, "planner": excluded_keys[0] if excluded_keys else -1}
             try:
@@ -293,7 +291,7 @@ def search_google_info(query):
 def create_permalink_gemini(keyword_arabic):
     """توليد رابط ثابت بالإنجليزية حصراً"""
     try:
-        client, selected_model = get_gemini_client_and_model()
+        client, selected_model = get_smart_client_and_model()
         # برومبت صارم للترجمة
         prompt = f"""
         Task: Create a professional, short, and SEO-friendly English slug for the Arabic keyword: "{keyword_arabic}".
@@ -496,7 +494,7 @@ def generate_article_structure(title, keyword, search_intent="معلوماتية
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            client, selected_model = get_gemini_client_and_model()
+            client, selected_model = get_smart_client_and_model()
             config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
             response = client.models.generate_content(model=selected_model, contents=prompt, config=config)
             
@@ -538,7 +536,7 @@ def get_synonyms(keyword):
     توليد مرادفات للكلمة المفتاحية تلقائياً باستخدام Gemini
     """
     try:
-        client, selected_model = get_gemini_client_and_model()
+        client, selected_model = get_smart_client_and_model()
         prompt = f"""
         أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية.
         
@@ -940,7 +938,7 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
 def analyze_intent_dynamically(title, keyword):
     """تحليل نية الباحث ديناميكياً إذا لم تكن موجودة في ملف الخطة"""
     try:
-        client, selected_model = get_gemini_client_and_model()
+        client, selected_model = get_smart_client_and_model()
         prompt = f"""
         أنت خبير SEO الجديد. قم بتحديد "نية الباحث" (Search Intent) للمقال التالي:
         العنوان: "{title}"
@@ -1053,7 +1051,7 @@ def write_full_article(article_data):
     global_bold_tracker = set()
 
     # 1. إعداد الجلسة الأولى
-    client, selected_model = get_smart_client_and_model(repo, force_rotate=False)
+    client, selected_model = get_smart_client_and_model(force_rotate=False)
     config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
     chat = client.chats.create(model=selected_model, config=config)
 
@@ -1170,7 +1168,7 @@ def write_full_article(article_data):
                     # هنا بنغير المفتاح والكلام ده...
                     
                     # نبدأ شات جديد
-                    client, selected_model = get_smart_client_and_model(repo, force_rotate=True)
+                    client, selected_model = get_smart_client_and_model(force_rotate=True)
                     config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
                     chat = client.chats.create(model=selected_model, config=config)
                     
@@ -1265,7 +1263,7 @@ def write_full_article(article_data):
             sum_prompt = get_content_prompt("summary_box", "ملخص", keyword, synonyms, search_intent, article_goal, "", all_headings_text)
             sum_prompt += f"\n\nالعناوين:\n{headings_text}" # نرفق العناوين هنا
             
-            sum_client, sum_selected_model = get_gemini_client_and_model()
+            sum_client, sum_selected_model = get_smart_client_and_model()
             sum_config = types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS)
             summary_chat = sum_client.chats.create(model=sum_selected_model, config=sum_config)
             
