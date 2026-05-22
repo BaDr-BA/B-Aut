@@ -227,7 +227,7 @@ def apply_smart_internal_linking(html_content, repo, blogger_service):
                     print(f"      ⚠️ Error: {error_msg[:100]}. Moving to the next key...")
                 time.sleep(3) # استراحة قصيرة قبل تجربة المفتاح التالي
 
-    # زراعة الروابط إذا نجحنا
+    # 3. زراعة الروابط إذا نجحنا (بتوزيع عشوائي طبيعي)
     if success and links_to_inject:
         parts = re.split(r'(<[^>]+>)', html_content)
         
@@ -239,11 +239,9 @@ def apply_smart_internal_linking(html_content, repo, blogger_service):
             
             in_heading = False
             in_link = False
-            word_injected = False
+            valid_indices = [] # سلة لجمع كل الأماكن الصالحة في المقال
             
             for i, part in enumerate(parts):
-                if word_injected: break
-                
                 if part.startswith('<h') and not part.startswith('</'): in_heading = True
                 elif part.startswith('</h'): in_heading = False
                 elif part.startswith('<a'): in_link = True
@@ -251,14 +249,18 @@ def apply_smart_internal_linking(html_content, repo, blogger_service):
                 
                 if not part.startswith('<') and not in_heading and not in_link:
                     if exact_word in part:
-                        replacement = f'<a href="{url}">{exact_word}</a>'
-                        parts[i] = part.replace(exact_word, replacement, 1)
-                        word_injected = True
-                        print(f"      🔗 Injected link on: '{exact_word}'")
+                        valid_indices.append(i) # تسجيل رقم الفقرة كصالحة للزرع
+            
+            # إذا وجدنا أماكن صالحة، نختار واحداً عشوائياً (لضمان التوزيع على طول المقال)
+            if valid_indices:
+                chosen_i = random.choice(valid_indices)
+                replacement = f'<a href="{url}">{exact_word}</a>'
+                parts[chosen_i] = parts[chosen_i].replace(exact_word, replacement, 1)
+                print(f"      🔗 Injected internal link on: '{exact_word}'")
                         
         return ''.join(parts)
     else:
-        print("   ❌ All models and all keys failed to generate internal links. Proceeding without them.")
+        print("   ❌ All models failed to generate internal links. Proceeding without them.")
         return html_content # نرجع المقال بدون روابط لو فشلت كل المحاولات
 
 def search_google_info(query):
@@ -538,9 +540,13 @@ def get_synonyms(keyword):
     try:
         client, selected_model = get_smart_client_and_model()
         prompt = f"""
-        أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية.
+        أنت خبير SEO الجديد متخصص في البحث عن الكلمات المفتاحية و NLP (معالجة اللغات الطبيعية).
+		الكلمة المفتاحية المستهدفة هي: "{keyword}"
         
-        المطلوب: أعطني 25 كلمة مرادفة (LSI Keywords) قوية جداً وذات صلة مباشرة بالكلمة الأساسية: "{keyword}"
+        المطلوب:
+		1. إذا كانت هذه الكلمة "طويلة جداً"، قم بتفكيكها واستخراج "الكلمات الرئيسية القصيرة" (Head Keywords) ذات حجم البحث العالي جداً منها.
+		2. أكتب كلمات مرادفة (LSI Keywords) قوية جداً وذات صلة مباشرة بالكلمة الأساسية: "{keyword}".
+		3. أريد قائمة نهائية تحتوي على 25 كلمة مفتاحية (مزيج بين أجزاء الكلمة الطويلة والمرادفات القوية).
         
         الشروط:
         1. الكلمات يجب أن تكون ذات صلة مباشرة ومنطقية بالكلمة الأساسية
@@ -551,7 +557,7 @@ def get_synonyms(keyword):
         6. تجنب الكلمات العامة جداً أو البعيدة عن الموضوع
         
         أعطني النتيجة كقائمة JSON بسيطة فقط، مثال:
-        ["مرادف 1", "مرادف 2", "مصطلح مشابه 3", "keyword 4"]
+        ["الكلمة المفصلية 1", "مرادف قوي", "جزء من الكلمة الطويلة"]
         
         ⚠️ مهم جداً: 
         - لا تضف أي نص أو شرح قبل أو بعد JSON
@@ -700,9 +706,10 @@ def get_content_prompt(section_type, section_title, keyword, synonyms_list=None,
     7. ممنوع الحشو ولا التكرار.
 	8. ⛔ قاعدة نحوية صارمة: إذا كانت الكلمة المفتاحية تبدو كجملة بحث ركيكة (مثل: "أمن المعلومات شرح")، يُمنع منعاً باتاً حشرها كما هي. قم بصياغتها نحوياً بشكل صحيح ومندمج في السياق (مثل: "شرح أمن المعلومات"). الأولوية المطلقة لسلامة اللغة العربية.
     {bridge_instruction}
-	10. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}
-    11. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}
-	12. 🛑 تحذير خطير جداً: يُمنع منعاً باتاً كتابة أسماء النوايا (مثل كلمة: معلوماتية، إجرائية، استقصائية، النية) كعناوين أو داخل النص. طبق الأسلوب المطلوب فقط دون أن تذكر اسمه أبداً
+	10. 🚀 الهدف الاستراتيجي للمقال (يجب تحقيقه في سياق كلامك): {article_goal}.
+    11. 🎯 أسرار احترافية لكتابة هذه الفقرة (هذه نية الباحث): {intent_rule}.
+	12. 🛑 تحذير خطير جداً: يُمنع منعاً باتاً كتابة أسماء النوايا (مثل كلمة: معلوماتية، إجرائية، استقصائية، النية) كعناوين أو داخل النص. طبق الأسلوب المطلوب فقط دون أن تذكر اسمه أبداً.
+    13. 🔑 استراتيجية الكلمات المفتاحية: استخدم هذه الكلمات بذكاء: ({syns_str}). إذا كانت الكلمة الأساسية ({keyword}) طويلة جداً، يُمنع تكرارها حرفياً بشكل مزعج، بل استخدم أجزاءها القصيرة والمرادفات التي أعطيتك إياها لضمان انسيابية السيو.
     """
 
     prompts = {
@@ -1034,13 +1041,8 @@ def write_full_article(article_data):
     final_slug = re.sub(r'-+', '-', final_slug)  
     final_slug = final_slug.strip('-')           
     
-    # 2. بناء بداية المقال
-    full_html = f"""
-{final_slug}
-<br>
-{meta_description}
-<br>
-<br>
+    # تجهيز المقال (بدون الرابط والميتا لكي لا تعبث بها المحركات)
+    full_html = ""
 """
     
     # متغير لتتبع البولد عالمياً (عشان ميكررش البولد في المقال كله)
@@ -1315,52 +1317,48 @@ def write_full_article(article_data):
     # --- التعديل: تنسيق العناوين : إلى | ---
     full_html = format_headings_style(full_html)
 
-    return full_html
+    # بعد انتهاء كل المحركات، نقوم بتركيب الرابط النسبي والميتا في الأعلى
+    final_output = f"{final_slug}\n<br>\n{meta_description}\n<br>\n<br>\n{full_html}"
+
+    return final_output
 
 def inject_external_links(html_content, external_dict):
     """
-    محرك الربط الخارجي الذكي (نسخة التتبع العميق):
-    يتجاهل العناوين ورؤوس الجداول حتى لو كانت متداخلة.
-    يزرع الرابط مرة واحدة فقط للكلمة في المقال بأكمله.
+    محرك الربط الخارجي الذكي (نسخة التوزيع العشوائي الطبيعي):
+    يتجاهل العناوين، ويزرع الرابط في مكان عشوائي في المقال لمنع التكدس.
     """
     print("   🌍 Injecting External Nofollow Links automatically...")
     
     parts = re.split(r'(<[^>]+>)', html_content)
-    # قائمة الأوسام الممنوع وضع روابط بداخلها (تم إضافة رؤوس الجداول th و thead)
     restricted_tags = ['h1', 'h2', 'h3', 'h4', 'a', 'th', 'thead', 'button']
     
     for brand, url in external_dict.items():
-        brand_injected = False
-        inside_restricted_count = 0  # عداد ذكي لتتبع التداخل
+        inside_restricted_count = 0
+        valid_indices = []
+        pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(brand) + r'(?![\w\u0600-\u06FF])'
         
         for i, part in enumerate(parts):
-            if brand_injected: 
-                break # الكلمة تم ربطها مرة، نخرج وندخل على الكلمة التي بعدها في القاموس
-            
-            # إذا كان الجزء عبارة عن كود HTML، نقوم بتحديث العداد
             if part.startswith('<'):
                 tag_match = re.match(r'</?([a-zA-Z0-9]+)', part)
                 if tag_match:
                     tag_name = tag_match.group(1).lower()
                     if tag_name in restricted_tags:
-                        # إذا كان وسم إغلاق، ننقص العداد
                         if part.startswith('</'):
                             inside_restricted_count = max(0, inside_restricted_count - 1)
-                        # إذا كان وسم فتح (وليس إغلاق ذاتي)، نزيد العداد
                         elif not part.endswith('/>'):
                             inside_restricted_count += 1
                 continue
             
-            # إذا كان نصاً عادياً، ولسنا داخل أي وسم ممنوع (العداد = 0)
             if inside_restricted_count == 0:
-                pattern = r'(?<![\w\u0600-\u06FF])' + re.escape(brand) + r'(?![\w\u0600-\u06FF])'
-                
                 if re.search(pattern, part, flags=re.IGNORECASE):
-                    # زرع الرابط الخارجي (Nofollow + Blank) مرة واحدة فقط
-                    replacement = f'<a href="{url}" target="_blank" rel="nofollow">{brand}</a>'
-                    parts[i] = re.sub(pattern, replacement, part, count=1, flags=re.IGNORECASE)
-                    brand_injected = True
-                    print(f"      ✅ Linked external brand '{brand}' successfully.")
+                    valid_indices.append(i) # تسجيل الفقرات التي تحتوي الكلمة
+                    
+        # اختيار فقرة عشوائية وزرع الرابط الخارجي مرة واحدة
+        if valid_indices:
+            chosen_i = random.choice(valid_indices)
+            replacement = f'<a href="{url}" target="_blank" rel="nofollow">{brand}</a>'
+            parts[chosen_i] = re.sub(pattern, replacement, parts[chosen_i], count=1, flags=re.IGNORECASE)
+            print(f"      ✅ Linked external brand '{brand}' successfully.")
                     
     return ''.join(parts)
 
