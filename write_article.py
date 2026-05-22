@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 TEST_MODE = False # اجعله False عندما تعتمد السكريبت نهائياً
 
 GEMINI_MODELS = [
-    'gemini-2.5-flash',
-    'gemma-4-31b-it'
+    'gemma-4-31b-it',
+    'gemini-2.5-flash'
 ]
 
 # --- الإعدادات والمفاتيح ---
