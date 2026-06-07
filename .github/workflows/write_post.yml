@@ -1,6 +1,6 @@
 name: Auto Writer & Publisher
 
-on:
+# on:
   workflow_dispatch:  # تشغيل يدوي
   schedule:
     - cron: '0 */8 * * *'  # كل 8 ساعات
